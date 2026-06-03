@@ -1,0 +1,3701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clickers - Smart Classroom Response System</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- js-aruco computer vision library files -->
+  <script>
+    /*
+      js-aruco's npm package ships CommonJS source files. Browser script tags do
+      not provide require/module, so load the two scanner dependencies through a
+      small compatibility shim and expose the globals used below.
+    */
+    (function () {
+      const modules = {};
+
+      window.__clickersCaptureModule = function (name) {
+        modules[name] = window.module.exports;
+        if (name === './cv') window.CV = modules[name];
+        if (name === './aruco') window.AR = modules[name];
+        window.module = { exports: {} };
+      };
+
+      window.require = function (name) {
+        if (modules[name]) return modules[name];
+        throw new Error('Unable to load js-aruco dependency: ' + name);
+      };
+
+      window.module = { exports: {} };
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/js-aruco@0.1.0/src/cv.js"></script>
+  <script>window.__clickersCaptureModule('./cv');</script>
+  <script src="https://cdn.jsdelivr.net/npm/js-aruco@0.1.0/src/aruco.js"></script>
+  <script>
+    window.__clickersCaptureModule('./aruco');
+    delete window.__clickersCaptureModule;
+    delete window.require;
+    delete window.module;
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+
+  <style>
+    /* Premium Design System & Styles */
+    :root {
+      --bg-dark: #f6f8fb;
+      --bg-slate: #ffffff;
+      --card-bg: #ffffff;
+      --card-border: #d9e2ef;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: rgba(79, 70, 229, 0.11);
+      --accent-emerald: #10b981;
+      --accent-emerald-light: rgba(16, 185, 129, 0.12);
+      --accent-rose: #e11d48;
+      --accent-rose-light: rgba(225, 29, 72, 0.11);
+      --accent-amber: #d97706;
+      --text-main: #172033;
+      --text-muted: #64748b;
+      --sidebar-width: 260px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-dark);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Navigation Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: #0b0f19;
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .brand-icon {
+      background: linear-gradient(135deg, var(--primary), #818cf8);
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .nav-list {
+      list-style: none;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-grow: 1;
+    }
+
+    .nav-item button {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      font-size: 15px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .nav-item button:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+    }
+
+    .nav-item.active button {
+      background-color: var(--primary-light);
+      color: #a5b4fc;
+      font-weight: 600;
+    }
+
+    .sidebar-footer {
+      padding: 20px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Main Content Layout */
+    .main-layout {
+      margin-left: var(--sidebar-width);
+      flex-grow: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-bar {
+      height: 70px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      background-color: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 90;
+    }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .app-container {
+      padding: 40px;
+      flex-grow: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* View containers */
+    .view-pane {
+      display: none;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .view-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.96); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: white;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-slate);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background-color: #334155;
+    }
+
+    .btn-emerald {
+      background-color: var(--accent-emerald-light);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .btn-emerald:hover {
+      background-color: rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-rose {
+      background-color: var(--accent-rose-light);
+      color: #fda4af;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .btn-rose:hover {
+      background-color: rgba(244, 63, 94, 0.25);
+    }
+
+    .btn-icon-only {
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    /* Cards */
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Live Session Setup View */
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .form-select, .form-input, .form-textarea {
+      width: 100%;
+      background-color: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text-main);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-select:focus, .form-input:focus, .form-textarea:focus {
+      border-color: var(--primary);
+    }
+
+    /* Live Scan Interface */
+    .scan-layout {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    .camera-container {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background-color: black;
+      border: 1px solid var(--card-border);
+      aspect-ratio: 16/9;
+    }
+
+    .camera-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* Mirror preview */
+      display: none; /* Processing is drawn to canvas */
+    }
+
+    .scan-overlay-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+    }
+
+    .camera-warning {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: var(--text-muted);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .camera-warning i {
+      font-size: 48px;
+      color: var(--accent-amber);
+    }
+
+    .scanner-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    /* Student List Panel */
+    .students-panel {
+      max-height: 580px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .students-scroll {
+      overflow-y: auto;
+      flex-grow: 1;
+      margin-top: 16px;
+      padding-right: 4px;
+    }
+
+    .student-list-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .student-badge {
+      background-color: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 4px;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .student-badge .student-name {
+      font-size: 13px;
+      font-weight: 500;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .student-badge .card-num {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .student-badge .status-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 10px;
+      transition: all 0.3s ease;
+    }
+
+    /* Responded student state */
+    .student-badge.responded {
+      border-color: rgba(16, 185, 129, 0.4);
+      background-color: rgba(16, 185, 129, 0.05);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.05);
+    }
+
+    .student-badge.responded .status-icon {
+      background-color: var(--accent-emerald);
+      color: white;
+    }
+
+    /* Class Manager / Questions View lists */
+    .list-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 24px;
+      transition: all 0.2s ease;
+    }
+
+    .item-row:hover {
+      background-color: rgba(30, 41, 59, 0.6);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .item-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .item-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .item-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Modal / Popups (Class editor, Question editor) */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-content {
+      width: 100%;
+      max-width: 600px;
+      background-color: var(--bg-slate);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      overflow: hidden;
+      animation: modalSlide 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    }
+
+    @keyframes modalSlide {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 24px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      padding: 20px 24px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      background-color: rgba(15, 23, 42, 0.2);
+    }
+
+    /* Option inputs for questions */
+    .option-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .option-input-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
+
+    .option-input-container:focus-within {
+      border-color: var(--primary);
+    }
+
+    .option-letter {
+      font-weight: 700;
+      color: var(--primary);
+      width: 20px;
+      text-align: center;
+    }
+
+    .option-text-input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      flex-grow: 1;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .correct-checkbox {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent-emerald);
+    }
+
+    /* Student management sub-table */
+    .student-editor-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    .student-editor-table th, .student-editor-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .student-editor-table th {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Printable card rendering space */
+    #print-section {
+      display: none;
+    }
+
+    .print-controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-slate);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+    }
+
+    .print-preview-container {
+      background-color: #0b0f19;
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+      align-items: center;
+      overflow-y: auto;
+      max-height: 75vh;
+    }
+
+    .preview-card-frame {
+      background-color: white;
+      color: black;
+      width: 800px;
+      height: 500px;
+      border: 2px solid #333;
+      border-radius: 4px;
+      display: flex;
+      position: relative;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+
+    .preview-card-frame::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      border-left: 2px dashed #bbb;
+    }
+
+    .front-side, .back-side {
+      width: 50%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 24px;
+    }
+
+    .back-side {
+      border-left: 1px solid #eee; /* Light divider in print preview */
+    }
+
+    /* Print styling labels */
+    .print-label {
+      position: absolute;
+      font-size: 28px;
+      font-weight: 800;
+      color: black;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .print-label-t { top: 12px; left: 50%; transform: translateX(-50%); }
+    .print-label-r { right: 12px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+    .print-label-b { bottom: 12px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+    .print-label-l { left: 12px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+
+    .marker-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 220px;
+      height: 220px;
+    }
+
+    .card-back-info {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 20px;
+    }
+
+    .back-student-name {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+      max-width: 100%;
+      word-wrap: break-word;
+    }
+
+    .back-card-id {
+      font-size: 20px;
+      font-weight: 600;
+      background-color: #f1f5f9;
+      padding: 6px 16px;
+      border-radius: 8px;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+
+    .back-instructions {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .back-instructions .highlight {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* CSS Bar Chart Layout (for reveal mode) */
+    .results-chart-panel {
+      display: none;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .results-chart-panel.active {
+      display: block;
+    }
+
+    .chart-container {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      height: 320px;
+      width: 100%;
+      margin-top: 24px;
+      background-color: rgba(15, 23, 42, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 30px 20px 20px 20px;
+    }
+
+    .chart-bar-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 18%;
+      height: 100%;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .chart-bar-val {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s;
+    }
+
+    .chart-bar-wrapper.animated .chart-bar-val {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .chart-bar {
+      width: 100%;
+      background: linear-gradient(180deg, #818cf8, var(--primary));
+      border-radius: 8px 8px 0 0;
+      height: 0%; /* Animated via JS */
+      transition: height 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+      min-height: 4px;
+      position: relative;
+    }
+
+    .chart-bar.correct {
+      background: linear-gradient(180deg, #34d399, var(--accent-emerald));
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .chart-bar-label {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+      padding: 4px 12px;
+      border-radius: 6px;
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .chart-bar-wrapper.correct-answer .chart-bar-label {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .correct-indicator {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--accent-emerald);
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .chart-bar.correct .correct-indicator {
+      display: flex;
+    }
+
+    /* PROJECTOR ONLY STYLE */
+    body.projector-mode {
+      background-color: #090d16;
+      color: #f8fafc;
+      margin-left: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    body.projector-mode .projector-content {
+      width: 100%;
+      max-width: 1200px;
+      height: 90vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 20px;
+    }
+
+    .proj-question-card {
+      background-color: #151f32;
+      border: 2px solid rgba(255, 255, 255, 0.05);
+      border-radius: 24px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    .proj-question-text {
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.35;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .proj-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .proj-option {
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 16px 24px;
+      text-align: left;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .proj-option.revealed-correct {
+      border-color: var(--accent-emerald);
+      background-color: rgba(16, 185, 129, 0.08);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      font-weight: 600;
+    }
+
+    .proj-option.revealed-incorrect {
+      opacity: 0.3;
+    }
+
+    .proj-option-letter {
+      font-weight: 800;
+      font-size: 24px;
+      color: var(--primary);
+    }
+
+    .proj-option.revealed-correct .proj-option-letter {
+      color: var(--accent-emerald);
+    }
+
+    .proj-status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+      padding: 10px;
+      overflow-y: auto;
+      max-height: 100%;
+    }
+
+    .proj-student-card {
+      background-color: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .proj-student-card.responded {
+      border-color: rgba(16, 185, 129, 0.4);
+      background-color: rgba(16, 185, 129, 0.08);
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1);
+      transform: scale(1.03);
+    }
+
+    .proj-student-card .check-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: transparent;
+      transition: all 0.3s ease;
+    }
+
+    .proj-student-card.responded .check-circle {
+      background-color: var(--accent-emerald);
+      border-color: var(--accent-emerald);
+      color: white;
+    }
+
+    .proj-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 16px;
+    }
+
+    .proj-class-name {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .proj-progress-text {
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .proj-progress-bar-bg {
+      width: 100%;
+      height: 10px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .proj-progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary), #818cf8);
+      border-radius: 5px;
+      transition: width 0.5s ease;
+    }
+
+    /* Light theme refinements */
+    ::-webkit-scrollbar-track {
+      background: #eef2f7;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .sidebar {
+      background-color: #ffffff;
+      box-shadow: 6px 0 24px rgba(15, 23, 42, 0.06);
+    }
+    .brand-icon {
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), #0ea5e9);
+    }
+    .brand-name {
+      background: none;
+      -webkit-background-clip: initial;
+      -webkit-text-fill-color: currentColor;
+      color: var(--text-main);
+    }
+    .nav-item button:hover {
+      background-color: #eef2ff;
+      color: var(--primary);
+    }
+    .nav-item.active button {
+      color: var(--primary);
+    }
+    .header-bar {
+      background-color: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+    }
+    .btn-secondary {
+      background-color: #ffffff;
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background-color: #f1f5f9;
+    }
+    .btn-emerald {
+      color: #047857;
+    }
+    .btn-rose {
+      color: #be123c;
+    }
+    .glass-card {
+      box-shadow: 0 16px 35px rgba(15, 23, 42, 0.08);
+    }
+    .form-select,
+    .form-input,
+    .form-textarea,
+    .option-input-container,
+    .student-badge {
+      background-color: #f8fafc;
+    }
+    .student-badge .status-icon,
+    .chart-bar-label {
+      background-color: #eef2f7;
+    }
+    .item-row {
+      background-color: #ffffff;
+    }
+    .item-row:hover {
+      background-color: #f8fafc;
+      border-color: #bfdbfe;
+    }
+    .modal-backdrop {
+      background-color: rgba(15, 23, 42, 0.28);
+    }
+    .modal-content,
+    .print-controls-bar {
+      background-color: #ffffff;
+    }
+    .modal-footer {
+      background-color: #f8fafc;
+    }
+    .print-preview-container {
+      background-color: #eef2f7;
+    }
+    .preview-card-frame {
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+    }
+    .chart-container {
+      background-color: #f8fafc;
+    }
+    .camera-warning,
+    .camera-warning p {
+      color: #f8fafc !important;
+    }
+    .camera-warning p:last-child {
+      color: #cbd5e1 !important;
+    }
+    .proj-question-card,
+    .proj-student-card,
+    .proj-option {
+      background-color: #ffffff;
+      border-color: var(--card-border);
+      box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
+    }
+    .proj-progress-bar-bg {
+      background-color: #e2e8f0;
+    }
+    body.projector-mode {
+      background-color: #f6f8fb;
+      color: var(--text-main);
+    }
+
+    /* Remote iPhone scanner panel */
+    .remote-scan-panel {
+      margin-top: 16px;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 14px;
+    }
+    .remote-scan-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .remote-scan-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .remote-scan-status {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .remote-scan-body {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .remote-scan-qr-wrap {
+      width: 112px;
+      height: 112px;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    #remote-scan-qr {
+      width: 104px;
+      height: 104px;
+    }
+    .remote-scan-link {
+      color: var(--primary);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+      text-decoration: none;
+    }
+    .remote-scan-help {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text-muted);
+    }
+
+    /* Mobile scanner route */
+    .mobile-scanner-view {
+      display: none;
+    }
+    body.mobile-scanner-mode {
+      display: block;
+      background: #f6f8fb;
+      color: var(--text-main);
+      overflow: hidden;
+    }
+    body.mobile-scanner-mode #mobile-scanner-view {
+      display: block;
+    }
+    .mobile-scan-shell {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+    }
+    .mobile-scan-top,
+    .mobile-scan-bottom {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+    .mobile-scan-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .mobile-scan-title {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .mobile-scan-status {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .mobile-scan-count {
+      min-width: 58px;
+      height: 44px;
+      border-radius: 10px;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .mobile-camera-container {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      min-height: 0;
+    }
+    .mobile-camera-feed,
+    .mobile-overlay-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .mobile-camera-feed {
+      display: none;
+    }
+    .mobile-overlay-canvas {
+      z-index: 2;
+    }
+    .mobile-camera-warning {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-align: center;
+      color: #f8fafc;
+      padding: 22px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(30, 41, 59, 0.86));
+    }
+    .mobile-scan-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .mobile-latest {
+      min-height: 36px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .mobile-latest strong {
+      color: var(--text-main);
+    }
+
+    @media (max-width: 980px) {
+      body {
+        display: block;
+      }
+      .sidebar {
+        position: sticky;
+        top: 0;
+        width: 100%;
+        height: auto;
+        bottom: auto;
+        z-index: 120;
+      }
+      .brand {
+        padding: 12px 16px;
+      }
+      .brand-icon {
+        width: 34px;
+        height: 34px;
+      }
+      .brand-name {
+        font-size: 18px;
+      }
+      .nav-list {
+        flex-direction: row;
+        gap: 8px;
+        padding: 8px 12px 12px;
+        overflow-x: auto;
+      }
+      .nav-item {
+        flex: 0 0 auto;
+      }
+      .nav-item button {
+        white-space: nowrap;
+        padding: 10px 12px;
+      }
+      .sidebar-footer {
+        display: none;
+      }
+      .main-layout {
+        margin-left: 0;
+      }
+      .header-bar {
+        position: static;
+        height: auto;
+        padding: 14px 16px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .app-container {
+        padding: 16px;
+      }
+      .setup-grid,
+      .scan-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .setup-grid {
+        margin-bottom: 18px;
+      }
+      .glass-card {
+        padding: 16px;
+      }
+      .card-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .scanner-controls,
+      .row-actions,
+      .print-controls-bar {
+        flex-wrap: wrap;
+      }
+      .scanner-controls .btn,
+      .print-controls-bar .btn,
+      #btn-start-session,
+      #btn-start-quick-session {
+        width: 100%;
+        justify-content: center;
+      }
+      .students-panel {
+        max-height: none;
+      }
+      .student-list-grid {
+        grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+      }
+      .item-row {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .item-meta {
+        max-width: none !important;
+      }
+      .option-grid {
+        grid-template-columns: 1fr;
+      }
+      .print-preview-container {
+        padding: 14px;
+        gap: 18px;
+      }
+      .preview-card-frame {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 8 / 5;
+      }
+      .marker-container {
+        width: 35%;
+        height: auto;
+      }
+      .marker-container svg {
+        width: 100%;
+        height: auto;
+      }
+      .back-student-name {
+        font-size: 20px;
+      }
+      .back-card-id {
+        font-size: 14px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page-title {
+        font-size: 18px;
+      }
+      .btn {
+        min-height: 42px;
+        padding: 10px 14px;
+      }
+      .camera-container {
+        aspect-ratio: 4 / 3;
+      }
+      .remote-scan-body {
+        grid-template-columns: 1fr;
+      }
+      .mobile-scan-actions {
+        grid-template-columns: 1fr;
+      }
+      .remote-scan-qr-wrap {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+      }
+      #remote-scan-qr {
+        width: min(220px, 80vw);
+        height: min(220px, 80vw);
+      }
+      .proj-progress-text {
+        font-size: 20px;
+      }
+      .chart-container {
+        height: 220px;
+        padding: 18px 10px 14px;
+      }
+      .preview-card-frame {
+        min-width: 640px;
+      }
+      .print-preview-container {
+        align-items: flex-start;
+      }
+    }
+
+    /* Print formatting details override */
+    @media print {
+      body {
+        background-color: white !important;
+        color: black !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      .sidebar, .header-bar, .app-container, .modal-backdrop, .no-print {
+        display: none !important;
+      }
+      #print-section {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+      .print-card {
+        page-break-after: always;
+        display: flex !important;
+        width: 100% !important;
+        height: 100vh !important;
+        border: 2px solid #000 !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        background-color: white !important;
+        color: black !important;
+      }
+      .print-card::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        border-left: 2px dashed #000 !important;
+        z-index: 100;
+      }
+      .front-side, .back-side {
+        width: 50% !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: relative !important;
+        box-sizing: border-box !important;
+        padding: 40px !important;
+        background-color: white !important;
+        color: black !important;
+      }
+      .back-side {
+        border-left: 1px solid #ccc !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <div class="sidebar no-print" id="sidebar-nav">
+    <div class="brand">
+      <div class="brand-icon">
+        <i data-lucide="scan-face"></i>
+      </div>
+      <div class="brand-name">Clickers</div>
+    </div>
+    <ul class="nav-list">
+      <li class="nav-item active" data-tab="live-tab">
+        <button><i data-lucide="play-circle"></i>Live Session</button>
+      </li>
+      <li class="nav-item" data-tab="classes-tab">
+        <button><i data-lucide="users"></i>Manage Classes</button>
+      </li>
+      <li class="nav-item" data-tab="questions-tab">
+        <button><i data-lucide="help-circle"></i>Question Bank</button>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      Classroom Scanner v1.0
+    </div>
+  </div>
+
+  <!-- ==================== MAIN CONTENT AREA ==================== -->
+  <div class="main-layout no-print" id="main-content">
+    <div class="header-bar">
+      <div class="page-title" id="page-title-text">Live Session</div>
+      <div class="header-actions">
+        <!-- Status Indicator / Sync info -->
+        <span id="projector-status" style="font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #64748b; display: inline-block;"></span>
+          Projector Not Connected
+        </span>
+      </div>
+    </div>
+
+    <div class="app-container">
+
+      <!-- ==================== VIEW: LIVE SESSION ==================== -->
+      <div class="view-pane active" id="live-tab">
+        <!-- Step 1: Select Class & Question or Start Quick Poll -->
+        <div id="session-setup-view" class="glass-card">
+          <div class="card-header" style="border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 16px;">
+              <button class="btn btn-primary" id="tab-setup-roster" style="padding: 6px 16px; font-size: 13px;">
+                Pre-loaded Poll
+              </button>
+              <button class="btn btn-secondary" id="tab-setup-quick" style="padding: 6px 16px; font-size: 13px;">
+                Quick Poll (On-the-Fly)
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-view 1: Roster Session Setup -->
+          <div id="setup-roster-pane">
+            <div class="setup-grid">
+              <div class="form-group">
+                <label for="session-class-select">Select Class</label>
+                <select class="form-select" id="session-class-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="session-question-select">Select Question</label>
+                <select class="form-select" id="session-question-select"></select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btn-start-session">
+              <i data-lucide="video"></i> Start Session & Open Scanner
+            </button>
+          </div>
+
+          <!-- Sub-view 2: Quick Poll Setup (hidden by default) -->
+          <div id="setup-quick-pane" style="display: none;">
+            <div class="setup-grid">
+              <div class="form-group">
+                <label for="quick-question-input">Quick Poll Question (Optional)</label>
+                <input type="text" class="form-input" id="quick-question-input" placeholder="e.g. Do you agree with the statement?">
+              </div>
+              <div class="form-group">
+                <label for="quick-card-count">Total Cards in Use</label>
+                <select class="form-select" id="quick-card-count">
+                  <option value="10">10 Cards (IDs 1-10)</option>
+                  <option value="20">20 Cards (IDs 1-20)</option>
+                  <option value="30" selected>30 Cards (IDs 1-30)</option>
+                  <option value="40">40 Cards (IDs 1-40)</option>
+                  <option value="50">50 Cards (IDs 1-50)</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-emerald" id="btn-start-quick-session">
+              <i data-lucide="zap"></i> Start Quick Poll & Open Scanner
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Scanner UI (visible only when session active) -->
+        <div id="session-active-view" style="display: none;">
+          <div class="scan-layout">
+            
+            <!-- Left: Video & Camera Feed -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title" id="active-question-display">Question Title</h3>
+                  <p class="item-subtitle" id="active-class-display" style="margin-top: 4px;">Class Name</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-secondary" id="btn-projector-launch">
+                    <i data-lucide="external-link"></i> Projector Screen
+                  </button>
+                  <button class="btn btn-rose btn-icon-only" id="btn-stop-session" title="Close Session">
+                    <i data-lucide="x-circle"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Camera Screen wrapper -->
+              <div class="camera-container">
+                <video class="camera-feed" id="webcam" autoplay playsinline></video>
+                <canvas class="scan-overlay-canvas" id="canvas-overlay"></canvas>
+                <div class="camera-warning" id="camera-warning-pane">
+                  <i data-lucide="aperture"></i>
+                  <p style="font-size: 16px; font-weight: 500; color: var(--text-main)">Camera Not Started</p>
+                  <p style="font-size: 13px; max-width: 320px;">Click "Start Scanning" to request camera access and begin scanning student clicker cards.</p>
+                </div>
+              </div>
+
+              <div class="scanner-controls">
+                <button class="btn btn-emerald" id="btn-toggle-scan">
+                  <i data-lucide="play"></i> Start Scanning
+                </button>
+                <button class="btn btn-secondary" id="btn-reset-poll">
+                  <i data-lucide="rotate-ccw"></i> Clear Responses
+                </button>
+                <button class="btn btn-primary" id="btn-reveal-results">
+                  <i data-lucide="bar-chart-3"></i> Project Results
+                </button>
+                <button class="btn btn-secondary" id="btn-toggle-private-mode">
+                  <i data-lucide="eye-off"></i> Private mode: ON
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Student Responses Panel -->
+            <div class="glass-card students-panel">
+              <div class="card-header">
+                <h3 class="card-title">Responses</h3>
+                <div class="proj-progress-text" id="session-progress-text">0 / 0</div>
+              </div>
+
+              <div class="proj-progress-bar-bg">
+                <div class="proj-progress-bar-fill" id="session-progress-bar-fill" style="width: 0%;"></div>
+              </div>
+
+              <div class="remote-scan-panel" id="remote-scan-panel">
+                <div class="remote-scan-header">
+                  <div class="remote-scan-title">
+                    <i data-lucide="smartphone" style="width:16px;height:16px;"></i>
+                    iPhone scanner
+                  </div>
+                  <div class="remote-scan-status" id="remote-scan-status">Preparing link</div>
+                </div>
+                <div class="remote-scan-body">
+                  <div class="remote-scan-qr-wrap">
+                    <canvas id="remote-scan-qr" width="112" height="112"></canvas>
+                  </div>
+                  <div>
+                    <a class="remote-scan-link" id="remote-scan-link" href="#" target="_blank" rel="noopener">Mobile scanner link</a>
+                    <div class="remote-scan-help" id="remote-scan-help">Start the Clickers server, scan this code, then use the phone camera for the class.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live Chart in Sidebar (optional representation) -->
+              <div class="results-chart-panel" id="sidebar-chart-pane" style="margin-top: 15px;">
+                <div class="chart-container" style="height: 180px; padding: 10px;">
+                  <div class="chart-bar-wrapper" id="side-wrapper-A">
+                    <div class="chart-bar-val" style="font-size: 12px;" id="side-val-A">0</div>
+                    <div class="chart-bar" id="side-bar-A" style="height: 0%;"></div>
+                    <div class="chart-bar-label" style="font-size: 14px; padding: 2px 6px;">A</div>
+                  </div>
+                  <div class="chart-bar-wrapper" id="side-wrapper-B">
+                    <div class="chart-bar-val" style="font-size: 12px;" id="side-val-B">0</div>
+                    <div class="chart-bar" id="side-bar-B" style="height: 0%;"></div>
+                    <div class="chart-bar-label" style="font-size: 14px; padding: 2px 6px;">B</div>
+                  </div>
+                  <div class="chart-bar-wrapper" id="side-wrapper-C">
+                    <div class="chart-bar-val" style="font-size: 12px;" id="side-val-C">0</div>
+                    <div class="chart-bar" id="side-bar-C" style="height: 0%;"></div>
+                    <div class="chart-bar-label" style="font-size: 14px; padding: 2px 6px;">C</div>
+                  </div>
+                  <div class="chart-bar-wrapper" id="side-wrapper-D">
+                    <div class="chart-bar-val" style="font-size: 12px;" id="side-val-D">0</div>
+                    <div class="chart-bar" id="side-bar-D" style="height: 0%;"></div>
+                    <div class="chart-bar-label" style="font-size: 14px; padding: 2px 6px;">D</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Student Check Grid -->
+              <div class="students-scroll" id="session-student-scroll">
+                <div class="student-list-grid" id="session-student-grid"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW: MANAGE CLASSES ==================== -->
+      <div class="view-pane" id="classes-tab">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3 class="card-title">Your Classes</h3>
+            <button class="btn btn-primary" id="btn-add-class">
+              <i data-lucide="plus-circle"></i> Create Class
+            </button>
+          </div>
+          <div class="list-wrapper" id="classes-list-container">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW: QUESTION BANK ==================== -->
+      <div class="view-pane" id="questions-tab">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3 class="card-title">Question Bank</h3>
+            <button class="btn btn-primary" id="btn-add-question">
+              <i data-lucide="plus-circle"></i> Add Question
+            </button>
+          </div>
+          <div class="list-wrapper" id="questions-list-container">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW: PRINT CARDS PREVIEW ==================== -->
+      <div class="view-pane" id="print-tab">
+        <div class="print-controls-bar">
+          <div>
+            <h3 class="card-title" id="print-class-title">Print Cards</h3>
+            <p class="item-subtitle" style="margin-top: 4px;">Fold cards vertically down the dashed center line so they are double-sided.</p>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <button class="btn btn-secondary" id="btn-print-back">
+              <i data-lucide="arrow-left"></i> Back
+            </button>
+            <button class="btn btn-primary" id="btn-print-trigger">
+              <i data-lucide="printer"></i> Print Cards Now
+            </button>
+          </div>
+        </div>
+        <div class="print-preview-container" id="print-preview-root">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CLASS EDITOR ==================== -->
+  <div class="modal-backdrop" id="class-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="card-title" id="class-modal-title">Create Class</h3>
+        <button class="btn btn-secondary btn-icon-only" onclick="closeModal('class-modal')">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="class-name-input">Class Name</label>
+          <input type="text" class="form-input" id="class-name-input" placeholder="e.g. Science Grade 5">
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+          <h4 class="card-title" style="font-size: 15px;">Student Roster</h4>
+          <button class="btn btn-secondary btn-emerald" id="btn-modal-add-student">
+            <i data-lucide="plus"></i> Add Student
+          </button>
+        </div>
+        <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 10px; margin-top: 10px;">
+          <table class="student-editor-table">
+            <thead>
+              <tr>
+                <th style="width: 15%;">Card ID</th>
+                <th>Student Name</th>
+                <th style="width: 15%; text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="student-editor-tbody">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('class-modal')">Cancel</button>
+        <button class="btn btn-primary" id="btn-class-save">Save Class</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: QUESTION EDITOR ==================== -->
+  <div class="modal-backdrop" id="question-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="card-title" id="question-modal-title">Add Question</h3>
+        <button class="btn btn-secondary btn-icon-only" onclick="closeModal('question-modal')">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="question-text-input">Question Text</label>
+          <textarea class="form-textarea" id="question-text-input" rows="3" placeholder="Write your question here..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label>Options & Correct Answer</label>
+          <div class="option-grid">
+            <div class="option-input-container">
+              <span class="option-letter">A</span>
+              <input type="text" class="option-text-input" id="opt-A" placeholder="Option A">
+              <input type="radio" name="correct-opt" class="correct-checkbox" value="A" id="chk-A">
+            </div>
+            <div class="option-input-container">
+              <span class="option-letter">B</span>
+              <input type="text" class="option-text-input" id="opt-B" placeholder="Option B">
+              <input type="radio" name="correct-opt" class="correct-checkbox" value="B" id="chk-B">
+            </div>
+            <div class="option-input-container">
+              <span class="option-letter">C</span>
+              <input type="text" class="option-text-input" id="opt-C" placeholder="Option C">
+              <input type="radio" name="correct-opt" class="correct-checkbox" value="C" id="chk-C">
+            </div>
+            <div class="option-input-container">
+              <span class="option-letter">D</span>
+              <input type="text" class="option-text-input" id="opt-D" placeholder="Option D">
+              <input type="radio" name="correct-opt" class="correct-checkbox" value="D" id="chk-D">
+            </div>
+          </div>
+          <span style="font-size: 12px; color: var(--text-muted);">Select the radio button next to the correct answer.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('question-modal')">Cancel</button>
+        <button class="btn btn-primary" id="btn-question-save">Save Question</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PRINT ONLY ROOT ELEMENT ==================== -->
+  <div id="print-section">
+    <!-- Populated dynamically upon print command -->
+  </div>
+
+  <!-- ==================== VIEW: PROJECTOR SCREEN (SMARTBOARD) ==================== -->
+  <!-- Loaded as fullscreen if path has #projector -->
+  <div id="projector-view" style="display: none; width: 100vw; height: 100vh;">
+    <div class="projector-content">
+      
+      <!-- Top header: class metadata and progress -->
+      <div class="proj-header">
+        <div>
+          <h2 id="proj-class-name" class="proj-class-name">Roster</h2>
+          <div class="proj-progress-bar-bg" style="width: 300px;">
+            <div class="proj-progress-bar-fill" id="proj-progress-bar-fill"></div>
+          </div>
+        </div>
+        <div class="proj-progress-text" id="proj-progress-text">0 / 0 Active Responses</div>
+      </div>
+
+      <!-- Center: Main question card or large bar chart -->
+      <div class="proj-question-card" id="proj-main-card">
+        <div class="proj-question-text" id="proj-question-text">Loading question...</div>
+        
+        <!-- Answers Reveal Screen (hidden initially) -->
+        <div class="results-chart-panel" id="proj-chart-panel">
+          <div class="chart-container">
+            <div class="chart-bar-wrapper" id="proj-wrapper-A">
+              <div class="chart-bar-val" id="proj-val-A">0 (0%)</div>
+              <div class="chart-bar" id="proj-bar-A">
+                <span class="correct-indicator"><i data-lucide="check" style="width: 12px; height: 12px;"></i></span>
+              </div>
+              <div class="chart-bar-label">A</div>
+            </div>
+            <div class="chart-bar-wrapper" id="proj-wrapper-B">
+              <div class="chart-bar-val" id="proj-val-B">0 (0%)</div>
+              <div class="chart-bar" id="proj-bar-B">
+                <span class="correct-indicator"><i data-lucide="check" style="width: 12px; height: 12px;"></i></span>
+              </div>
+              <div class="chart-bar-label">B</div>
+            </div>
+            <div class="chart-bar-wrapper" id="proj-wrapper-C">
+              <div class="chart-bar-val" id="proj-val-C">0 (0%)</div>
+              <div class="chart-bar" id="proj-bar-C">
+                <span class="correct-indicator"><i data-lucide="check" style="width: 12px; height: 12px;"></i></span>
+              </div>
+              <div class="chart-bar-label">C</div>
+            </div>
+            <div class="chart-bar-wrapper" id="proj-wrapper-D">
+              <div class="chart-bar-val" id="proj-val-D">0 (0%)</div>
+              <div class="chart-bar" id="proj-bar-D">
+                <span class="correct-indicator"><i data-lucide="check" style="width: 12px; height: 12px;"></i></span>
+              </div>
+              <div class="chart-bar-label">D</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multiple Choice Options preview (visible initially, faded/removed in reveal) -->
+        <div class="proj-options-grid" id="proj-options-grid">
+          <div class="proj-option" id="proj-opt-card-A">
+            <span class="proj-option-letter">A</span>
+            <span id="proj-opt-text-A">Option A</span>
+          </div>
+          <div class="proj-option" id="proj-opt-card-B">
+            <span class="proj-option-letter">B</span>
+            <span id="proj-opt-text-B">Option B</span>
+          </div>
+          <div class="proj-option" id="proj-opt-card-C">
+            <span class="proj-option-letter">C</span>
+            <span id="proj-opt-text-C">Option C</span>
+          </div>
+          <div class="proj-option" id="proj-opt-card-D">
+            <span class="proj-option-letter">D</span>
+            <span id="proj-opt-text-D">Option D</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: Responsive Student Grid (fades slightly when chart reveals) -->
+      <div style="flex-grow: 1; min-height: 200px; display: flex; flex-direction: column;" id="proj-roster-pane">
+        <h4 style="font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 12px;">Roster Submitted Checklist</h4>
+        <div class="proj-status-grid" id="proj-student-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== VIEW: MOBILE SCANNER ==================== -->
+  <div id="mobile-scanner-view" class="mobile-scanner-view">
+    <div class="mobile-scan-shell">
+      <div class="mobile-scan-top">
+        <div>
+          <div class="mobile-scan-title">Clickers Scanner</div>
+          <div class="mobile-scan-status" id="mobile-sync-status">Waiting for session</div>
+        </div>
+        <div class="mobile-scan-count" id="mobile-scan-count">0</div>
+      </div>
+
+      <div class="mobile-camera-container">
+        <video class="mobile-camera-feed" id="mobile-webcam" autoplay playsinline muted></video>
+        <canvas class="mobile-overlay-canvas" id="mobile-canvas-overlay"></canvas>
+        <div class="mobile-camera-warning" id="mobile-camera-warning">
+          <i data-lucide="camera" style="width:44px;height:44px;"></i>
+          <div style="font-weight:700;">Camera ready</div>
+          <div style="font-size:13px; line-height:1.4; max-width:280px;">Tap Start and point the iPhone at the clicker cards.</div>
+        </div>
+      </div>
+
+      <div class="mobile-scan-bottom">
+        <div class="mobile-scan-actions">
+          <button class="btn btn-primary" id="btn-mobile-start">
+            <i data-lucide="play"></i> Start
+          </button>
+          <button class="btn btn-secondary" id="btn-mobile-photo">
+            <i data-lucide="camera"></i> Snapshot
+          </button>
+          <button class="btn btn-secondary" id="btn-mobile-stop">
+            <i data-lucide="pause"></i> Stop
+          </button>
+        </div>
+        <input type="file" id="mobile-photo-input" accept="image/*" capture="environment" style="display:none;">
+        <div class="mobile-latest">
+          <span id="mobile-latest-scan">No scans yet</span>
+          <strong id="mobile-session-short"></strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== WEB APP JAVASCRIPT ==================== -->
+  <script>
+    // Safe Lucide icon initializer helper
+    function safeCreateIcons() {
+      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        try {
+          lucide.createIcons();
+        } catch (e) {
+          console.error('Error creating icons:', e);
+        }
+      } else {
+        console.warn('Lucide library not loaded.');
+      }
+    }
+
+    // ----------------------------------------------------
+    // ARUCO MARKER ALGORITHM & SVG GENERATOR
+    // ----------------------------------------------------
+    
+    // Generates 5x5 ArUco marker bit matrix from original dictionary
+    function getArucoMatrix(id) {
+      if (id < 0 || id > 1023) {
+        throw new RangeError('Marker ID must be in the range [0..1023]');
+      }
+      const ids = [16, 23, 9, 14];
+      const marker = Array(5).fill(0).map(() => Array(5).fill(0));
+      for (let y = 0; y < 5; y++) {
+        const index = (id >> (2 * (4 - y))) & 3;
+        const val = ids[index];
+        for (let x = 0; x < 5; x++) {
+          marker[x][y] = (val >> (4 - x)) & 1;
+        }
+      }
+      return marker;
+    }
+
+    // Creates high-resolution crisp SVG markup for the 7x7 ArUco marker
+    function generateArucoSVG(id, size = 150) {
+      const matrix = getArucoMatrix(id);
+      let rects = [];
+      // Background of 7x7 is black, forming the outer black border.
+      // Inner 5x5 contains white cells where matrix bit is 1.
+      for (let y = 0; y < 5; y++) {
+        for (let x = 0; x < 5; x++) {
+          if (matrix[x][y] === 1) {
+            rects.push(`<rect x="${x + 1}" y="${y + 1}" width="1" height="1" fill="white" />`);
+          }
+        }
+      }
+      return `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 7" width="${size}" height="${size}" shape-rendering="crispEdges">
+          <rect x="0" y="0" width="7" height="7" fill="black" />
+          ${rects.join('')}
+        </svg>
+      `;
+    }
+
+    // Calculates which direction is "UP" in the image relative to the camera coords
+    function getMarkerOrientation(corners) {
+      // corners: Array of 4 vertices: {x,y} in clockwise order:
+      // corners[0]: top-left, corners[1]: top-right, corners[2]: bottom-right, corners[3]: bottom-left
+      
+      const cx = (corners[0].x + corners[1].x + corners[2].x + corners[3].x) / 4;
+      const cy = (corners[0].y + corners[1].y + corners[2].y + corners[3].y) / 4;
+      
+      // Midpoints of the 4 physical sides
+      // Side A (top edge): corners[0] to corners[1]
+      const ay = (corners[0].y + corners[1].y) / 2;
+      // Side B (right edge): corners[1] to corners[2]
+      const by = (corners[1].y + corners[2].y) / 2;
+      // Side C (bottom edge): corners[2] to corners[3]
+      const cy_edge = (corners[2].y + corners[3].y) / 2;
+      // Side D (left edge): corners[3] to corners[0]
+      const dy = (corners[3].y + corners[0].y) / 2;
+
+      // In HTML canvas, Y increases downwards. The smallest Y is closest to the top of the video screen.
+      // Thus, whichever edge midpoint has the lowest Y component relative to the center is the one facing UP.
+      const yA = ay - cy;
+      const yB = by - cy;
+      const yC = cy_edge - cy;
+      const yD = dy - cy;
+      
+      const minY = Math.min(yA, yB, yC, yD);
+      
+      if (minY === yA) return 'A';
+      if (minY === yB) return 'B';
+      if (minY === yC) return 'C';
+      return 'D';
+    }
+
+    // ----------------------------------------------------
+    // LOCAL DATA STORAGE & SEEDING
+    // ----------------------------------------------------
+    let classes = [];
+    let questions = [];
+    try {
+      classes = JSON.parse(localStorage.getItem('clickers_classes')) || [];
+    } catch (e) {
+      console.error('Error parsing clickers_classes from localStorage:', e);
+    }
+    try {
+      questions = JSON.parse(localStorage.getItem('clickers_questions')) || [];
+    } catch (e) {
+      console.error('Error parsing clickers_questions from localStorage:', e);
+    }
+
+    // Seeding default database for first-time use
+    if (classes.length === 0) {
+      classes = [
+        {
+          id: 'class_demo',
+          name: 'Science Grade 5 (Demo)',
+          students: [
+            { id: 'stud_1', name: 'Alice Smith', cardId: 1 },
+            { id: 'stud_2', name: 'Bob Johnson', cardId: 2 },
+            { id: 'stud_3', name: 'Charlie Miller', cardId: 3 },
+            { id: 'stud_4', name: 'Diana Prince', cardId: 4 },
+            { id: 'stud_5', name: 'Ethan Hunt', cardId: 5 }
+          ]
+        }
+      ];
+      localStorage.setItem('clickers_classes', JSON.stringify(classes));
+    }
+
+    if (questions.length === 0) {
+      questions = [
+        {
+          id: 'q_demo_1',
+          text: 'Which planet in our solar system is known for its prominent rings?',
+          options: { A: 'Mars', B: 'Saturn', C: 'Jupiter', D: 'Neptune' },
+          correct: 'B'
+        },
+        {
+          id: 'q_demo_2',
+          text: 'What is 3 + 4 * 2?',
+          options: { A: '14', B: '11', C: '24', D: '9' },
+          correct: 'B'
+        },
+        {
+          id: 'q_demo_3',
+          text: 'What gas do plants absorb from the atmosphere for photosynthesis?',
+          options: { A: 'Oxygen', B: 'Nitrogen', C: 'Carbon Dioxide', D: 'Hydrogen' },
+          correct: 'C'
+        }
+      ];
+      localStorage.setItem('clickers_questions', JSON.stringify(questions));
+    }
+
+    // ----------------------------------------------------
+    // APP NAVIGATION & TABS
+    // ----------------------------------------------------
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const tabId = item.getAttribute('data-tab');
+        
+        // Hide print tab custom views, clean routes
+        document.getElementById('main-content').style.display = 'flex';
+        document.getElementById('main-content').style.marginLeft = '';
+        document.getElementById('sidebar-nav').style.display = 'flex';
+
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
+        
+        item.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+
+        // Dynamically configure heading bar title
+        const titles = {
+          'live-tab': 'Live Session',
+          'classes-tab': 'Manage Classes',
+          'questions-tab': 'Question Bank'
+        };
+        document.getElementById('page-title-text').innerText = titles[tabId] || 'Clickers';
+        
+        // Load tab state content
+        if (tabId === 'classes-tab') renderClassesList();
+        if (tabId === 'questions-tab') renderQuestionsList();
+        if (tabId === 'live-tab') initLiveSetup();
+      });
+    });
+
+    // ----------------------------------------------------
+    // VIEW ROUTER: DETECTING PROJECTOR MODE
+    // ----------------------------------------------------
+    let isProjectorWindow = false;
+    let isMobileScannerWindow = false;
+    let mobileSessionId = '';
+    let projectorStateUpdateHandler = null;
+    const mobileRouteMatch = window.location.hash.match(/^#mobile-scan\/([A-Za-z0-9_-]+)/);
+
+    if (mobileRouteMatch) {
+      isMobileScannerWindow = true;
+      mobileSessionId = mobileRouteMatch[1];
+      document.body.classList.add('mobile-scanner-mode');
+      document.getElementById('sidebar-nav').style.display = 'none';
+      document.getElementById('main-content').style.display = 'none';
+      document.getElementById('projector-view').style.display = 'none';
+      document.getElementById('mobile-scanner-view').style.display = 'block';
+    } else if (window.location.hash === '#projector') {
+      isProjectorWindow = true;
+      document.body.classList.add('projector-mode');
+      document.getElementById('sidebar-nav').style.display = 'none';
+      document.getElementById('main-content').style.display = 'none';
+      document.getElementById('projector-view').style.display = 'block';
+      
+      // Expose a globally accessible function for the opener window to push updates
+      window.updateState = function(sessionData, questionData, classData, showResults, privateMode) {
+        renderProjectorLayout(sessionData, questionData, classData, showResults, privateMode);
+      };
+
+      // Notify opener that this child has finished loading
+      try {
+        if (window.opener && typeof window.opener.registerProjector === 'function') {
+          window.opener.registerProjector(window);
+        }
+      } catch (e) {
+        console.error('Failed to register projector window with opener:', e);
+      }
+    } else {
+      // Normal application view
+      safeCreateIcons();
+    }
+
+    // ----------------------------------------------------
+    // PROJECTOR SYNC MECHANISM
+    // ----------------------------------------------------
+    let activeProjectorWin = null;
+
+    window.registerProjector = function(win) {
+      activeProjectorWin = win;
+      document.getElementById('projector-status').innerHTML = `
+        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-emerald); display: inline-block;"></span>
+        Projector Sync Active
+      `;
+      pushStateToProjector();
+    };
+
+    function pushStateToProjector() {
+      try {
+        if (activeProjectorWin && !activeProjectorWin.closed) {
+          activeProjectorWin.updateState(
+            activeSession,
+            currentQuestion,
+            currentClass,
+            revealResults,
+            privateMode
+          );
+        } else {
+          document.getElementById('projector-status').innerHTML = `
+            <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #64748b; display: inline-block;"></span>
+            Projector Not Connected
+          `;
+        }
+      } catch (e) {
+        console.error('Error pushing state to projector window:', e);
+        document.getElementById('projector-status').innerHTML = `
+          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #f43f5e; display: inline-block;"></span>
+          Projector Connection Lost
+        `;
+      }
+    }
+
+    // ----------------------------------------------------
+    // SOUND FEEDBACK SYNTHESIZER
+    // ----------------------------------------------------
+    function playScanBeep(freq = 523.25) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+      } catch (err) {
+        console.error('Audio synthesizer error:', err);
+      }
+    }
+
+    // ----------------------------------------------------
+    // MANAGING CLASSES & STUDENT ROSTERS
+    // ----------------------------------------------------
+    let editingClassId = null;
+    let localStudents = [];
+
+    function renderClassesList() {
+      const listContainer = document.getElementById('classes-list-container');
+      listContainer.innerHTML = '';
+      
+      classes.forEach(cls => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <div class="item-meta">
+            <div class="item-title">${cls.name}</div>
+            <div class="item-subtitle">${cls.students.length} Students Roster</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-secondary" onclick="openPrintPreview('${cls.id}')" title="Print Cards">
+              <i data-lucide="printer" style="width:16px;height:16px;"></i> Print Cards
+            </button>
+            <button class="btn btn-secondary" onclick="editClass('${cls.id}')" title="Edit Class">
+              <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Edit
+            </button>
+            <button class="btn btn-rose btn-icon-only" onclick="deleteClass('${cls.id}')" title="Delete Class">
+              <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+            </button>
+          </div>
+        `;
+        listContainer.appendChild(row);
+      });
+      safeCreateIcons();
+    }
+
+    document.getElementById('btn-add-class').addEventListener('click', () => {
+      editingClassId = null;
+      localStudents = [];
+      document.getElementById('class-modal-title').innerText = 'Create Class';
+      document.getElementById('class-name-input').value = '';
+      renderStudentEditorTable();
+      openModal('class-modal');
+    });
+
+    document.getElementById('btn-modal-add-student').addEventListener('click', () => {
+      // Auto increment Card ID based on existing max
+      const nextCardId = localStudents.reduce((max, s) => s.cardId > max ? s.cardId : max, 0) + 1;
+      localStudents.push({
+        id: 'stud_' + Date.now() + Math.random().toString(36).substr(2, 4),
+        name: '',
+        cardId: nextCardId
+      });
+      renderStudentEditorTable();
+    });
+
+    function renderStudentEditorTable() {
+      const tbody = document.getElementById('student-editor-tbody');
+      tbody.innerHTML = '';
+      
+      localStudents.forEach((student, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <input type="number" class="form-input" style="padding: 6px 8px;" value="${student.cardId}" 
+              onchange="updateLocalStudentCardId(${idx}, this.value)">
+          </td>
+          <td>
+            <input type="text" class="form-input" style="padding: 6px 8px;" placeholder="Student Full Name" value="${student.name}" 
+              onchange="updateLocalStudentName(${idx}, this.value)">
+          </td>
+          <td style="text-align: center;">
+            <button class="btn btn-rose btn-icon-only" style="padding: 4px;" onclick="removeLocalStudent(${idx})">
+              <i data-lucide="trash" style="width: 14px; height: 14px;"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      safeCreateIcons();
+    }
+
+    function updateLocalStudentName(idx, val) {
+      localStudents[idx].name = val;
+    }
+
+    function updateLocalStudentCardId(idx, val) {
+      localStudents[idx].cardId = parseInt(val) || 1;
+    }
+
+    function removeLocalStudent(idx) {
+      localStudents.splice(idx, 1);
+      renderStudentEditorTable();
+    }
+
+    document.getElementById('btn-class-save').addEventListener('click', () => {
+      const name = document.getElementById('class-name-input').value.trim();
+      if (!name) {
+        alert('Please enter a class name.');
+        return;
+      }
+      
+      // Clean names
+      const studentsFiltered = localStudents.filter(s => s.name.trim() !== '');
+
+      if (editingClassId) {
+        // Edit existing
+        const idx = classes.findIndex(c => c.id === editingClassId);
+        if (idx !== -1) {
+          classes[idx].name = name;
+          classes[idx].students = studentsFiltered;
+        }
+      } else {
+        // Create new
+        classes.push({
+          id: 'class_' + Date.now(),
+          name: name,
+          students: studentsFiltered
+        });
+      }
+
+      localStorage.setItem('clickers_classes', JSON.stringify(classes));
+      closeModal('class-modal');
+      renderClassesList();
+    });
+
+    window.editClass = function(classId) {
+      const cls = classes.find(c => c.id === classId);
+      if (!cls) return;
+      
+      editingClassId = cls.id;
+      document.getElementById('class-modal-title').innerText = 'Edit Class';
+      document.getElementById('class-name-input').value = cls.name;
+      localStudents = JSON.parse(JSON.stringify(cls.students)); // Deep clone
+      renderStudentEditorTable();
+      openModal('class-modal');
+    };
+
+    window.deleteClass = function(classId) {
+      if (confirm('Are you sure you want to delete this class roster?')) {
+        classes = classes.filter(c => c.id !== classId);
+        localStorage.setItem('clickers_classes', JSON.stringify(classes));
+        renderClassesList();
+      }
+    };
+
+    // ----------------------------------------------------
+    // MANAGING QUESTIONS BANK
+    // ----------------------------------------------------
+    let editingQuestionId = null;
+
+    function renderQuestionsList() {
+      const listContainer = document.getElementById('questions-list-container');
+      listContainer.innerHTML = '';
+      
+      questions.forEach(q => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        
+        let correctOptionText = q.correct ? `${q.correct}: ${q.options[q.correct]}` : 'None Set';
+        
+        row.innerHTML = `
+          <div class="item-meta" style="flex-grow: 1; max-width: 75%;">
+            <div class="item-title">${q.text}</div>
+            <div class="item-subtitle" style="margin-top: 4px; display: flex; gap: 16px;">
+              <span><strong>Correct:</strong> <span style="color:#34d399">${correctOptionText}</span></span>
+              <span><strong>Options:</strong> A: ${q.options.A}, B: ${q.options.B}...</span>
+            </div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-secondary" onclick="editQuestion('${q.id}')" title="Edit">
+              <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Edit
+            </button>
+            <button class="btn btn-rose btn-icon-only" onclick="deleteQuestion('${q.id}')" title="Delete">
+              <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+            </button>
+          </div>
+        `;
+        listContainer.appendChild(row);
+      });
+      safeCreateIcons();
+    }
+
+    document.getElementById('btn-add-question').addEventListener('click', () => {
+      editingQuestionId = null;
+      document.getElementById('question-modal-title').innerText = 'Add Question';
+      document.getElementById('question-text-input').value = '';
+      document.getElementById('opt-A').value = '';
+      document.getElementById('opt-B').value = '';
+      document.getElementById('opt-C').value = '';
+      document.getElementById('opt-D').value = '';
+      document.querySelectorAll('input[name="correct-opt"]').forEach(r => r.checked = false);
+      openModal('question-modal');
+    });
+
+    document.getElementById('btn-question-save').addEventListener('click', () => {
+      const text = document.getElementById('question-text-input').value.trim();
+      const oA = document.getElementById('opt-A').value.trim();
+      const oB = document.getElementById('opt-B').value.trim();
+      const oC = document.getElementById('opt-C').value.trim();
+      const oD = document.getElementById('opt-D').value.trim();
+      
+      const checkedRadio = document.querySelector('input[name="correct-opt"]:checked');
+      const correct = checkedRadio ? checkedRadio.value : '';
+
+      if (!text || !oA || !oB || !oC || !oD) {
+        alert('Please fill out the question and all four options.');
+        return;
+      }
+
+      if (editingQuestionId) {
+        const idx = questions.findIndex(q => q.id === editingQuestionId);
+        if (idx !== -1) {
+          questions[idx] = {
+            id: editingQuestionId,
+            text,
+            options: { A: oA, B: oB, C: oC, D: oD },
+            correct
+          };
+        }
+      } else {
+        questions.push({
+          id: 'q_' + Date.now(),
+          text,
+          options: { A: oA, B: oB, C: oC, D: oD },
+          correct
+        });
+      }
+
+      localStorage.setItem('clickers_questions', JSON.stringify(questions));
+      closeModal('question-modal');
+      renderQuestionsList();
+    });
+
+    window.editQuestion = function(questionId) {
+      const q = questions.find(qu => qu.id === questionId);
+      if (!q) return;
+
+      editingQuestionId = q.id;
+      document.getElementById('question-modal-title').innerText = 'Edit Question';
+      document.getElementById('question-text-input').value = q.text;
+      document.getElementById('opt-A').value = q.options.A;
+      document.getElementById('opt-B').value = q.options.B;
+      document.getElementById('opt-C').value = q.options.C;
+      document.getElementById('opt-D').value = q.options.D;
+      
+      document.querySelectorAll('input[name="correct-opt"]').forEach(r => {
+        r.checked = (r.value === q.correct);
+      });
+      openModal('question-modal');
+    };
+
+    window.deleteQuestion = function(questionId) {
+      if (confirm('Are you sure you want to delete this question?')) {
+        questions = questions.filter(qu => qu.id !== questionId);
+        localStorage.setItem('clickers_questions', JSON.stringify(questions));
+        renderQuestionsList();
+      }
+    };
+
+    // ----------------------------------------------------
+    // PRINT CARDS ENGINE
+    // ----------------------------------------------------
+    window.openPrintPreview = function(classId) {
+      const cls = classes.find(c => c.id === classId);
+      if (!cls) return;
+      
+      // Shift main container states to Print View
+      document.getElementById('sidebar-nav').style.display = 'none';
+      document.getElementById('main-content').style.display = 'flex';
+      document.getElementById('main-content').style.marginLeft = '0';
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
+      
+      const printTab = document.getElementById('print-tab');
+      printTab.classList.add('active');
+      document.getElementById('page-title-text').innerText = 'Print Cards';
+      
+      document.getElementById('print-class-title').innerText = `Print Cards for ${cls.name}`;
+      
+      // Build dynamic printable nodes
+      const printRoot = document.getElementById('print-preview-root');
+      printRoot.innerHTML = '';
+
+      const printSection = document.getElementById('print-section');
+      printSection.innerHTML = '';
+      
+      if (cls.students.length === 0) {
+        printRoot.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">Roster is empty. Add students before printing.</div>`;
+        return;
+      }
+
+      cls.students.forEach(student => {
+        const svgCode = generateArucoSVG(student.cardId, 230);
+        
+        // Renders visual preview inside app (styled for screen)
+        const previewFrame = document.createElement('div');
+        previewFrame.className = 'preview-card-frame';
+        previewFrame.innerHTML = `
+          <div class="front-side">
+            <div class="print-label print-label-t">A</div>
+            <div class="print-label print-label-r">B</div>
+            <div class="print-label print-label-b">C</div>
+            <div class="print-label print-label-l">D</div>
+            <div class="marker-container">${svgCode}</div>
+          </div>
+          <div class="back-side">
+            <div class="print-label print-label-t">A</div>
+            <div class="print-label print-label-l">B</div>
+            <div class="print-label print-label-b">C</div>
+            <div class="print-label print-label-r">D</div>
+            <div class="card-back-info">
+              <h2 class="back-student-name">${student.name}</h2>
+              <div class="back-card-id">Card #${student.cardId}</div>
+              <div class="back-instructions">
+                <span class="highlight">Hold your choice at the TOP</span><br>
+                facing the teacher's camera.
+              </div>
+            </div>
+          </div>
+        `;
+        printRoot.appendChild(previewFrame);
+
+        // Clones node structure directly into print container for page output
+        const printableCard = previewFrame.cloneNode(true);
+        printableCard.className = 'print-card';
+        printSection.appendChild(printableCard);
+      });
+      safeCreateIcons();
+    };
+
+    document.getElementById('btn-print-back').addEventListener('click', () => {
+      // Restore panels
+      document.getElementById('sidebar-nav').style.display = 'flex';
+      document.getElementById('main-content').style.display = 'flex';
+      document.getElementById('main-content').style.marginLeft = '';
+      document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
+      document.getElementById('print-tab').classList.remove('active');
+      
+      // Go back to Classes tab
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const classNavItem = document.querySelector('[data-tab="classes-tab"]');
+      classNavItem.classList.add('active');
+      document.getElementById('classes-tab').classList.add('active');
+      document.getElementById('page-title-text').innerText = 'Manage Classes';
+      renderClassesList();
+    });
+
+    document.getElementById('btn-print-trigger').addEventListener('click', () => {
+      window.print();
+    });
+
+    // ----------------------------------------------------
+    // LIVE POLL SCANNER RUNTIME
+    // ----------------------------------------------------
+    let currentClass = null;
+    let currentQuestion = null;
+    let activeSession = {
+      responses: {} // studentCardId -> { answer, timestamp }
+    };
+    let cameraStream = null;
+    let isScanning = false;
+    let revealResults = false;
+    let privateMode = true; // Hide letters on teacher display and smartboard grid (default)
+    let animationFrameId = null;
+    let remoteSessionId = '';
+    let remotePollTimer = null;
+    let remoteServerAvailable = false;
+
+    // Camera pipeline elements
+    const videoElement = document.getElementById('webcam');
+    const overlayCanvas = document.getElementById('canvas-overlay');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    
+    // Memory allocation for unmirrored detection canvas
+    const hiddenCanvas = document.createElement('canvas');
+    const hiddenCtx = hiddenCanvas.getContext('2d');
+
+    // Instantiate ArUco core detector
+    let detector = null;
+    try {
+      detector = new AR.Detector();
+    } catch (err) {
+      console.error("Fiducial marker detector failed to initialize. Computer Vision features unavailable.", err);
+    }
+
+    function createRemoteSessionId() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+      }
+      return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function setRemoteStatus(text) {
+      const el = document.getElementById('remote-scan-status');
+      if (el) el.innerText = text;
+    }
+
+    async function getRemoteScannerOrigin() {
+      try {
+        const res = await fetch('/api/server-info', { cache: 'no-store' });
+        if (!res.ok) throw new Error('server-info unavailable');
+        const info = await res.json();
+        remoteServerAvailable = true;
+        return info.preferredOrigin || window.location.origin;
+      } catch (err) {
+        remoteServerAvailable = false;
+        return window.location.origin;
+      }
+    }
+
+    function mobileScannerPath(sessionId) {
+      return `${window.location.pathname}#mobile-scan/${encodeURIComponent(sessionId)}`;
+    }
+
+    async function renderRemoteScannerInvite() {
+      if (!remoteSessionId) return;
+      const origin = await getRemoteScannerOrigin();
+      const mobileUrl = `${origin}${mobileScannerPath(remoteSessionId)}`;
+      const link = document.getElementById('remote-scan-link');
+      const help = document.getElementById('remote-scan-help');
+      const canvas = document.getElementById('remote-scan-qr');
+
+      if (link) {
+        link.href = mobileUrl;
+        link.innerText = mobileUrl;
+      }
+      if (help) {
+        help.innerText = remoteServerAvailable
+          ? 'Use the phone on the same Wi-Fi network. If the phone blocks camera access, open this URL through HTTPS.'
+          : 'Run server.py for phone sync. Without it, this link only opens another local copy.';
+      }
+      if (canvas && typeof window.qrcode === 'function') {
+        try {
+          const qr = window.qrcode(0, 'M');
+          qr.addData(mobileUrl);
+          qr.make();
+          const ctx = canvas.getContext('2d');
+          const modules = qr.getModuleCount();
+          const cell = canvas.width / modules;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#172033';
+          for (let row = 0; row < modules; row++) {
+            for (let col = 0; col < modules; col++) {
+              if (qr.isDark(row, col)) {
+                ctx.fillRect(Math.floor(col * cell), Math.floor(row * cell), Math.ceil(cell), Math.ceil(cell));
+              }
+            }
+          }
+        } catch (err) {
+          console.error('QR render failed:', err);
+        }
+      }
+      setRemoteStatus(remoteServerAvailable ? 'Ready' : 'Server needed');
+      safeCreateIcons();
+    }
+
+    async function resetRemoteSessionOnServer() {
+      if (!remoteSessionId) return;
+      try {
+        await fetch(`/api/session/${encodeURIComponent(remoteSessionId)}/reset`, {
+          method: 'POST'
+        });
+      } catch (err) {
+        console.warn('Remote session reset failed:', err);
+      }
+    }
+
+    function stopRemotePolling() {
+      if (remotePollTimer) {
+        clearInterval(remotePollTimer);
+        remotePollTimer = null;
+      }
+    }
+
+    function mergeRemoteResponses(remoteResponses) {
+      if (!currentClass || !remoteResponses) return false;
+      let changed = false;
+      Object.entries(remoteResponses).forEach(([cardId, response]) => {
+        const student = currentClass.students.find(s => String(s.cardId) === String(cardId));
+        if (!student || !response || !response.answer) return;
+        const local = activeSession.responses[student.cardId];
+        const timestamp = response.timestamp || Date.now();
+        if (!local || timestamp >= (local.timestamp || 0)) {
+          activeSession.responses[student.cardId] = {
+            answer: response.answer,
+            timestamp,
+            remote: true
+          };
+          changed = true;
+        }
+      });
+      return changed;
+    }
+
+    async function syncRemoteResponses() {
+      if (!remoteSessionId || !currentClass) return;
+      try {
+        const res = await fetch(`/api/session/${encodeURIComponent(remoteSessionId)}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('session unavailable');
+        const data = await res.json();
+        remoteServerAvailable = true;
+        setRemoteStatus('Linked');
+        if (mergeRemoteResponses(data.responses)) {
+          updateSessionStats();
+          renderLiveStudentGrid();
+          pushStateToProjector();
+        }
+      } catch (err) {
+        remoteServerAvailable = false;
+        setRemoteStatus('Server offline');
+      }
+    }
+
+    async function beginRemoteSession() {
+      stopRemotePolling();
+      remoteSessionId = createRemoteSessionId();
+      setRemoteStatus('Preparing link');
+      await resetRemoteSessionOnServer();
+      await renderRemoteScannerInvite();
+      await syncRemoteResponses();
+      remotePollTimer = setInterval(syncRemoteResponses, 800);
+    }
+
+    function stopRemoteSession() {
+      stopRemotePolling();
+      remoteSessionId = '';
+      setRemoteStatus('No active session');
+    }
+
+    function initLiveSetup() {
+      // Clear active elements, show selection settings
+      document.getElementById('session-setup-view').style.display = 'block';
+      document.getElementById('session-active-view').style.display = 'none';
+      stopWebcam();
+      stopRemoteSession();
+
+      // Populate Select pickers
+      const classSelect = document.getElementById('session-class-select');
+      classSelect.innerHTML = '';
+      classes.forEach(c => {
+        classSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.students.length} students)</option>`;
+      });
+
+      const qSelect = document.getElementById('session-question-select');
+      qSelect.innerHTML = '';
+      questions.forEach(q => {
+        qSelect.innerHTML += `<option value="${q.id}">${q.text.substring(0, 50)}...</option>`;
+      });
+    }
+
+    // Setup tab toggles
+    document.getElementById('tab-setup-roster').addEventListener('click', () => {
+      document.getElementById('tab-setup-roster').className = 'btn btn-primary';
+      document.getElementById('tab-setup-quick').className = 'btn btn-secondary';
+      document.getElementById('setup-roster-pane').style.display = 'block';
+      document.getElementById('setup-quick-pane').style.display = 'none';
+    });
+
+    document.getElementById('tab-setup-quick').addEventListener('click', () => {
+      document.getElementById('tab-setup-roster').className = 'btn btn-secondary';
+      document.getElementById('tab-setup-quick').className = 'btn btn-primary';
+      document.getElementById('setup-roster-pane').style.display = 'none';
+      document.getElementById('setup-quick-pane').style.display = 'block';
+    });
+
+    // Start Quick Poll Session listener
+    document.getElementById('btn-start-quick-session').addEventListener('click', () => {
+      const questionText = document.getElementById('quick-question-input').value.trim() || 'On-the-Fly Quick Poll';
+      const cardCount = parseInt(document.getElementById('quick-card-count').value) || 30;
+
+      // Build virtual class roster on the fly (not saved in standard classes list)
+      currentClass = {
+        id: 'class_quick',
+        name: 'Quick Poll',
+        students: Array.from({ length: cardCount }, (_, i) => ({
+          id: `virtual_${i + 1}`,
+          name: `Card ${i + 1}`,
+          cardId: i + 1
+        }))
+      };
+
+      // Build virtual question on the fly (not saved in question bank)
+      currentQuestion = {
+        id: 'q_quick',
+        text: questionText,
+        options: { A: 'A', B: 'B', C: 'C', D: 'D' },
+        correct: '' // No correct answer set for generic polls
+      };
+
+      // Set active session texts
+      document.getElementById('active-question-display').innerText = currentQuestion.text;
+      document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
+
+      activeSession = { responses: {} };
+      revealResults = false;
+      privateMode = true; // start in private mode
+      document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Private mode: ON';
+      
+      document.getElementById('session-setup-view').style.display = 'none';
+      document.getElementById('session-active-view').style.display = 'block';
+
+      // Hide charts initially
+      document.getElementById('sidebar-chart-pane').classList.remove('active');
+      beginRemoteSession();
+      
+      updateSessionStats();
+      renderLiveStudentGrid();
+      pushStateToProjector();
+      
+      // Auto start camera
+      startWebcam();
+    });
+
+    document.getElementById('btn-start-session').addEventListener('click', () => {
+      const classId = document.getElementById('session-class-select').value;
+      const qId = document.getElementById('session-question-select').value;
+      
+      currentClass = classes.find(c => c.id === classId);
+      currentQuestion = questions.find(q => q.id === qId);
+
+      if (!currentClass || !currentQuestion) {
+        alert('Please select a valid class and question.');
+        return;
+      }
+
+      // Configure Active UI Text
+      document.getElementById('active-question-display').innerText = currentQuestion.text;
+      document.getElementById('active-class-display').innerText = currentClass.name;
+
+      activeSession = { responses: {} };
+      revealResults = false;
+      privateMode = true;
+      document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Private mode: ON';
+      
+      document.getElementById('session-setup-view').style.display = 'none';
+      document.getElementById('session-active-view').style.display = 'block';
+
+      // Hide sidebar/header charts, activate roster checklist
+      document.getElementById('sidebar-chart-pane').classList.remove('active');
+      beginRemoteSession();
+      
+      updateSessionStats();
+      renderLiveStudentGrid();
+      pushStateToProjector();
+      
+      // Auto request camera on session start
+      startWebcam();
+    });
+
+    document.getElementById('btn-stop-session').addEventListener('click', () => {
+      if (confirm('Are you sure you want to close this poll? Current results will be lost.')) {
+        stopWebcam();
+        initLiveSetup();
+        pushStateToProjector();
+      }
+    });
+
+    document.getElementById('btn-toggle-scan').addEventListener('click', () => {
+      if (isScanning) {
+        pauseScanning();
+      } else {
+        if (!cameraStream) {
+          startWebcam();
+        } else {
+          startScanning();
+        }
+      }
+    });
+
+    document.getElementById('btn-reset-poll').addEventListener('click', () => {
+      if (confirm('Reset poll responses and scan again?')) {
+        activeSession.responses = {};
+        revealResults = false;
+        document.getElementById('sidebar-chart-pane').classList.remove('active');
+        resetRemoteSessionOnServer();
+        updateSessionStats();
+        renderLiveStudentGrid();
+        pushStateToProjector();
+        playScanBeep(300); // sound notification for reset
+      }
+    });
+
+    document.getElementById('btn-reveal-results').addEventListener('click', () => {
+      revealResults = !revealResults;
+      if (revealResults) {
+        document.getElementById('btn-reveal-results').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Hide Chart';
+        document.getElementById('sidebar-chart-pane').classList.add('active');
+        animateSidebarChart();
+      } else {
+        document.getElementById('btn-reveal-results').innerHTML = '<i data-lucide="bar-chart-3" style="width:16px;height:16px;"></i> Project Results';
+        document.getElementById('sidebar-chart-pane').classList.remove('active');
+      }
+      pushStateToProjector();
+    });
+
+    document.getElementById('btn-toggle-private-mode').addEventListener('click', () => {
+      privateMode = !privateMode;
+      if (privateMode) {
+        document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Private mode: ON';
+      } else {
+        document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye" style="width:16px;height:16px;"></i> Private mode: OFF';
+      }
+      renderLiveStudentGrid();
+      pushStateToProjector();
+    });
+
+    document.getElementById('btn-projector-launch').addEventListener('click', () => {
+      const screenWidth = window.screen.width;
+      const screenHeight = window.screen.height;
+      const windowFeatures = `width=${screenWidth},height=${screenHeight},left=0,top=0,menubar=no,toolbar=no,location=no,status=no`;
+      
+      const projUrl = window.location.origin + window.location.pathname + '#projector';
+      const win = window.open(projUrl, 'clicker_projector', windowFeatures);
+      if (win) {
+        win.focus();
+      } else {
+        alert("A popup blocker prevented the projector window from opening. Please enable popups for this site.");
+      }
+    });
+
+    // Camera Hardware Access API
+    async function startWebcam() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Webcam access is not supported by your browser in this context.\n\nNote: Camera hardware scanning requires a Secure Context (HTTPS or localhost). If you opened the file directly (file://), try running a local server.');
+        return;
+      }
+      try {
+        const constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'environment' // Use back camera if on mobile, default on laptop
+          },
+          audio: false
+        };
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoElement.srcObject = cameraStream;
+        
+        videoElement.onloadedmetadata = () => {
+          overlayCanvas.width = videoElement.videoWidth;
+          overlayCanvas.height = videoElement.videoHeight;
+          hiddenCanvas.width = videoElement.videoWidth;
+          hiddenCanvas.height = videoElement.videoHeight;
+          
+          document.getElementById('camera-warning-pane').style.display = 'none';
+          videoElement.style.display = 'block';
+          
+          startScanning();
+        };
+      } catch (err) {
+        console.error('Camera API error:', err);
+        alert('Could not access your camera. Make sure permissions are granted and no other app is using it.');
+      }
+    }
+
+    function stopWebcam() {
+      pauseScanning();
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      videoElement.srcObject = null;
+      document.getElementById('camera-warning-pane').style.display = 'flex';
+      videoElement.style.display = 'none';
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+
+    function startScanning() {
+      if (!cameraStream) return;
+      isScanning = true;
+      document.getElementById('btn-toggle-scan').className = 'btn btn-rose';
+      document.getElementById('btn-toggle-scan').innerHTML = '<i data-lucide="pause"></i> Pause Scanning';
+      safeCreateIcons();
+      scanLoop();
+    }
+
+    function pauseScanning() {
+      isScanning = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      document.getElementById('btn-toggle-scan').className = 'btn btn-emerald';
+      document.getElementById('btn-toggle-scan').innerHTML = '<i data-lucide="play"></i> Resume Scanning';
+      safeCreateIcons();
+    }
+
+    // Computes and overlays tracking data
+    function scanLoop() {
+      if (!isScanning) return;
+
+      const W = overlayCanvas.width;
+      const H = overlayCanvas.height;
+
+      // Draw unmirrored frame to compute computer vision math
+      hiddenCtx.drawImage(videoElement, 0, 0, W, H);
+      
+      // Draw mirrored preview background
+      overlayCtx.clearRect(0, 0, W, H);
+      overlayCtx.save();
+      overlayCtx.translate(W, 0);
+      overlayCtx.scale(-1, 1);
+      overlayCtx.drawImage(videoElement, 0, 0, W, H);
+      overlayCtx.restore();
+
+      // Execute ArUco Detector on image pixels
+      if (detector) {
+        try {
+          const imgData = hiddenCtx.getImageData(0, 0, W, H);
+          const markers = detector.detect(imgData);
+          
+          markers.forEach(marker => {
+            const corners = marker.corners;
+            const markerId = marker.id;
+
+            // Search if marker maps to a roster student
+            const student = currentClass.students.find(s => s.cardId === markerId);
+            const isKnown = !!student;
+            
+            // Extract choice based on 2D tilt
+            const choice = getMarkerOrientation(corners);
+
+            // Trigger updates if valid student detected
+            if (isKnown) {
+              const previousAnswerObj = activeSession.responses[markerId];
+              
+              if (!previousAnswerObj) {
+                // First time answer scan
+                activeSession.responses[markerId] = { answer: choice, timestamp: Date.now() };
+                playScanBeep(523.25); // C5: success
+                updateSessionStats();
+                renderLiveStudentGrid();
+                pushStateToProjector();
+              } else if (previousAnswerObj.answer !== choice && (Date.now() - previousAnswerObj.timestamp > 800)) {
+                // Updated choice rotation thresholded for noise debounce
+                activeSession.responses[markerId] = { answer: choice, timestamp: Date.now() };
+                playScanBeep(659.25); // E5: change answer note
+                updateSessionStats();
+                renderLiveStudentGrid();
+                pushStateToProjector();
+              }
+            }
+
+            // Draw augmented reality bounds (mirrored coordinates)
+            overlayCtx.beginPath();
+            overlayCtx.strokeStyle = isKnown ? '#10b981' : '#f59e0b';
+            overlayCtx.lineWidth = 4;
+            
+            // Points are mapped: W - x (to overlay correctly on mirrored preview)
+            overlayCtx.moveTo(W - corners[0].x, corners[0].y);
+            overlayCtx.lineTo(W - corners[1].x, corners[1].y);
+            overlayCtx.lineTo(W - corners[2].x, corners[2].y);
+            overlayCtx.lineTo(W - corners[3].x, corners[3].y);
+            overlayCtx.closePath();
+            overlayCtx.stroke();
+
+            // Highlight top-most edge
+            // Midpoint of corners representing selected option
+            let activeMidX = 0;
+            let activeMidY = 0;
+            if (choice === 'A') {
+              activeMidX = (corners[0].x + corners[1].x) / 2;
+              activeMidY = (corners[0].y + corners[1].y) / 2;
+            } else if (choice === 'B') {
+              activeMidX = (corners[1].x + corners[2].x) / 2;
+              activeMidY = (corners[1].y + corners[2].y) / 2;
+            } else if (choice === 'C') {
+              activeMidX = (corners[2].x + corners[3].x) / 2;
+              activeMidY = (corners[2].y + corners[3].y) / 2;
+            } else {
+              activeMidX = (corners[3].x + corners[0].x) / 2;
+              activeMidY = (corners[3].y + corners[0].y) / 2;
+            }
+
+            overlayCtx.beginPath();
+            overlayCtx.arc(W - activeMidX, activeMidY, 8, 0, 2 * Math.PI);
+            overlayCtx.fillStyle = '#6366f1';
+            overlayCtx.fill();
+
+            // Text Label
+            overlayCtx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            const textWidth = 140;
+            const labelX = Math.min(Math.max(W - corners[0].x - textWidth/2, 10), W - textWidth - 10);
+            const labelY = Math.max(corners[0].y - 20, 30);
+            
+            overlayCtx.fillRect(labelX, labelY - 20, textWidth, 26);
+            overlayCtx.strokeStyle = isKnown ? '#10b981' : '#f59e0b';
+            overlayCtx.lineWidth = 1;
+            overlayCtx.strokeRect(labelX, labelY - 20, textWidth, 26);
+
+            overlayCtx.fillStyle = 'white';
+            overlayCtx.font = 'bold 12px sans-serif';
+            const nameLabel = isKnown ? student.name : 'Unknown Card';
+            const displayChoice = (!isKnown || privateMode) ? '✔' : choice;
+            overlayCtx.fillText(`${nameLabel}: ${displayChoice}`, labelX + 8, labelY - 3);
+          });
+        } catch (error) {
+          console.error("Frame processing runtime error: ", error);
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(scanLoop);
+    }
+
+    // ----------------------------------------------------
+    // MOBILE PHONE SCANNER RUNTIME
+    // ----------------------------------------------------
+    let mobileStream = null;
+    let mobileScanning = false;
+    let mobileAnimationFrameId = null;
+    const mobileSeenCards = new Set();
+    const mobileLastSent = {};
+    const mobileVideoElement = document.getElementById('mobile-webcam');
+    const mobileOverlayCanvas = document.getElementById('mobile-canvas-overlay');
+    const mobileOverlayCtx = mobileOverlayCanvas.getContext('2d');
+    const mobileHiddenCanvas = document.createElement('canvas');
+    const mobileHiddenCtx = mobileHiddenCanvas.getContext('2d');
+
+    function setMobileStatus(text) {
+      const el = document.getElementById('mobile-sync-status');
+      if (el) el.innerText = text;
+    }
+
+    function setMobileLatest(text) {
+      const el = document.getElementById('mobile-latest-scan');
+      if (el) el.innerText = text;
+    }
+
+    function updateMobileCount() {
+      const el = document.getElementById('mobile-scan-count');
+      if (el) el.innerText = mobileSeenCards.size;
+    }
+
+    function initMobileScanner() {
+      document.getElementById('mobile-session-short').innerText = mobileSessionId ? mobileSessionId.slice(0, 6) : '';
+      setMobileStatus(mobileSessionId ? 'Linked to teacher screen' : 'Missing session');
+      document.getElementById('btn-mobile-start').addEventListener('click', startMobileCamera);
+      document.getElementById('btn-mobile-stop').addEventListener('click', stopMobileCamera);
+      document.getElementById('btn-mobile-photo').addEventListener('click', () => {
+        document.getElementById('mobile-photo-input').click();
+      });
+      document.getElementById('mobile-photo-input').addEventListener('change', processMobilePhoto);
+      updateMobileCount();
+
+      if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+        setMobileStatus('Camera may require HTTPS on iPhone');
+      }
+      safeCreateIcons();
+    }
+
+    async function startMobileCamera() {
+      if (!mobileSessionId) {
+        setMobileStatus('Missing session');
+        return;
+      }
+      if (!detector) {
+        setMobileStatus('Marker detector unavailable');
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setMobileStatus('Camera blocked by browser security');
+        document.getElementById('mobile-camera-warning').innerHTML = `
+          <i data-lucide="lock" style="width:44px;height:44px;"></i>
+          <div style="font-weight:700;">Camera blocked</div>
+          <div style="font-size:13px; line-height:1.4; max-width:280px;">iPhone browsers require a secure page for camera scanning.</div>
+        `;
+        safeCreateIcons();
+        return;
+      }
+
+      try {
+        mobileStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: { ideal: 'environment' }
+          },
+          audio: false
+        });
+        mobileVideoElement.srcObject = mobileStream;
+        mobileVideoElement.onloadedmetadata = () => {
+          mobileOverlayCanvas.width = mobileVideoElement.videoWidth;
+          mobileOverlayCanvas.height = mobileVideoElement.videoHeight;
+          mobileHiddenCanvas.width = mobileVideoElement.videoWidth;
+          mobileHiddenCanvas.height = mobileVideoElement.videoHeight;
+          mobileVideoElement.style.display = 'block';
+          document.getElementById('mobile-camera-warning').style.display = 'none';
+          mobileScanning = true;
+          setMobileStatus('Scanning');
+          mobileScanLoop();
+        };
+      } catch (err) {
+        console.error('Mobile camera error:', err);
+        setMobileStatus('Camera permission denied');
+      }
+    }
+
+    function stopMobileCamera() {
+      mobileScanning = false;
+      if (mobileAnimationFrameId) {
+        cancelAnimationFrame(mobileAnimationFrameId);
+        mobileAnimationFrameId = null;
+      }
+      if (mobileStream) {
+        mobileStream.getTracks().forEach(track => track.stop());
+        mobileStream = null;
+      }
+      mobileVideoElement.srcObject = null;
+      mobileVideoElement.style.display = 'none';
+      mobileOverlayCtx.clearRect(0, 0, mobileOverlayCanvas.width, mobileOverlayCanvas.height);
+      document.getElementById('mobile-camera-warning').style.display = 'flex';
+      setMobileStatus(mobileSessionId ? 'Paused' : 'Missing session');
+    }
+
+    async function sendMobileResponse(cardId, answer) {
+      const now = Date.now();
+      const previous = mobileLastSent[cardId];
+      if (previous && previous.answer === answer && now - previous.timestamp < 1200) return;
+      if (previous && previous.answer !== answer && now - previous.timestamp < 650) return;
+
+      mobileLastSent[cardId] = { answer, timestamp: now };
+      try {
+        const res = await fetch(`/api/session/${encodeURIComponent(mobileSessionId)}/response`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardId, answer, timestamp: now })
+        });
+        if (!res.ok) throw new Error('server rejected response');
+        mobileSeenCards.add(String(cardId));
+        updateMobileCount();
+        setMobileStatus('Linked to teacher screen');
+        setMobileLatest(`Card #${cardId}: ${answer}`);
+        playScanBeep(answer === 'A' ? 523.25 : answer === 'B' ? 587.33 : answer === 'C' ? 659.25 : 698.46);
+      } catch (err) {
+        console.error('Mobile response sync failed:', err);
+        setMobileStatus('Cannot reach teacher screen');
+      }
+    }
+
+    function drawMobileMarker(marker, choice) {
+      const corners = marker.corners;
+      mobileOverlayCtx.beginPath();
+      mobileOverlayCtx.strokeStyle = '#10b981';
+      mobileOverlayCtx.lineWidth = 4;
+      mobileOverlayCtx.moveTo(corners[0].x, corners[0].y);
+      mobileOverlayCtx.lineTo(corners[1].x, corners[1].y);
+      mobileOverlayCtx.lineTo(corners[2].x, corners[2].y);
+      mobileOverlayCtx.lineTo(corners[3].x, corners[3].y);
+      mobileOverlayCtx.closePath();
+      mobileOverlayCtx.stroke();
+
+      const label = `#${marker.id}: ${choice}`;
+      const labelX = Math.max(10, Math.min(corners[0].x, mobileOverlayCanvas.width - 110));
+      const labelY = Math.max(34, corners[0].y - 12);
+      mobileOverlayCtx.fillStyle = 'rgba(15, 23, 42, 0.84)';
+      mobileOverlayCtx.fillRect(labelX, labelY - 24, 100, 28);
+      mobileOverlayCtx.fillStyle = '#ffffff';
+      mobileOverlayCtx.font = 'bold 16px sans-serif';
+      mobileOverlayCtx.fillText(label, labelX + 8, labelY - 5);
+    }
+
+    function detectMobileMarkersFromCanvas(width, height) {
+      try {
+        const imgData = mobileHiddenCtx.getImageData(0, 0, width, height);
+        const markers = detector.detect(imgData);
+        markers.forEach(marker => {
+          const choice = getMarkerOrientation(marker.corners);
+          drawMobileMarker(marker, choice);
+          sendMobileResponse(marker.id, choice);
+        });
+        return markers.length;
+      } catch (err) {
+        console.error('Mobile image processing error:', err);
+        return 0;
+      }
+    }
+
+    function processMobilePhoto(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          stopMobileCamera();
+          const maxSide = 1600;
+          const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+          const W = Math.max(1, Math.round(img.naturalWidth * scale));
+          const H = Math.max(1, Math.round(img.naturalHeight * scale));
+          mobileOverlayCanvas.width = W;
+          mobileOverlayCanvas.height = H;
+          mobileHiddenCanvas.width = W;
+          mobileHiddenCanvas.height = H;
+          document.getElementById('mobile-camera-warning').style.display = 'none';
+          mobileHiddenCtx.drawImage(img, 0, 0, W, H);
+          mobileOverlayCtx.clearRect(0, 0, W, H);
+          mobileOverlayCtx.drawImage(img, 0, 0, W, H);
+          const found = detectMobileMarkersFromCanvas(W, H);
+          setMobileStatus(found ? `Snapshot scanned ${found}` : 'No cards found in snapshot');
+          event.target.value = '';
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function mobileScanLoop() {
+      if (!mobileScanning) return;
+
+      const W = mobileOverlayCanvas.width;
+      const H = mobileOverlayCanvas.height;
+      mobileHiddenCtx.drawImage(mobileVideoElement, 0, 0, W, H);
+      mobileOverlayCtx.clearRect(0, 0, W, H);
+      mobileOverlayCtx.drawImage(mobileVideoElement, 0, 0, W, H);
+
+      detectMobileMarkersFromCanvas(W, H);
+
+      mobileAnimationFrameId = requestAnimationFrame(mobileScanLoop);
+    }
+
+    function updateSessionStats() {
+      if (!currentClass) return;
+      const respondedCount = Object.keys(activeSession.responses).length;
+      const totalStudents = currentClass.students.length;
+      
+      const pct = totalStudents > 0 ? (respondedCount / totalStudents) * 100 : 0;
+      
+      document.getElementById('session-progress-text').innerText = `${respondedCount} / ${totalStudents}`;
+      document.getElementById('session-progress-bar-fill').style.width = `${pct}%`;
+
+      if (revealResults) {
+        animateSidebarChart();
+      }
+    }
+
+    function renderLiveStudentGrid() {
+      if (!currentClass) return;
+      const grid = document.getElementById('session-student-grid');
+      grid.innerHTML = '';
+
+      // Sort: if virtual students (ID starts with 'virtual'), sort by cardId. Otherwise sort by name alphabetically.
+      const isVirtual = currentClass.students.length > 0 && currentClass.students[0].id.startsWith('virtual');
+      const sortedStudents = [...currentClass.students].sort((a, b) => {
+        if (isVirtual) return a.cardId - b.cardId;
+        return a.name.localeCompare(b.name);
+      });
+
+      sortedStudents.forEach(student => {
+        const response = activeSession.responses[student.cardId];
+        const hasAnswered = !!response;
+        
+        const badge = document.createElement('div');
+        badge.className = `student-badge ${hasAnswered ? 'responded' : ''}`;
+        
+        let statusText = '...';
+        if (hasAnswered) {
+          statusText = privateMode ? '<i data-lucide="check" style="width:12px;height:12px;"></i>' : response.answer;
+        }
+
+        badge.innerHTML = `
+          <span class="student-name">${student.name}</span>
+          <span class="card-num">Card #${student.cardId}</span>
+          <div class="status-icon">${statusText}</div>
+        `;
+        grid.appendChild(badge);
+      });
+      safeCreateIcons();
+    }
+
+    // Dynamic bar animating function
+    function animateSidebarChart() {
+      if (!currentQuestion) return;
+      const counts = { A: 0, B: 0, C: 0, D: 0 };
+      const values = Object.values(activeSession.responses);
+      values.forEach(r => {
+        if (counts[r.answer] !== undefined) counts[r.answer]++;
+      });
+
+      const total = values.length || 1; // Avoid divide by zero
+
+      ['A', 'B', 'C', 'D'].forEach(letter => {
+        const count = counts[letter];
+        const pct = (count / total) * 100;
+        
+        const barEl = document.getElementById(`side-bar-${letter}`);
+        const valEl = document.getElementById(`side-val-${letter}`);
+        const wrapperEl = document.getElementById(`side-wrapper-${letter}`);
+
+        barEl.style.height = `${pct}%`;
+        valEl.innerText = `${count}`;
+        
+        wrapperEl.classList.add('animated');
+
+        // Color coding for correct answer
+        if (currentQuestion.correct && currentQuestion.correct === letter) {
+          barEl.classList.add('correct');
+          wrapperEl.classList.add('correct-answer');
+        } else {
+          barEl.classList.remove('correct');
+          wrapperEl.classList.remove('correct-answer');
+        }
+      });
+    }
+
+    // ----------------------------------------------------
+    // PROJECTOR VIEW RENDER PIPE (dual-screen screen state)
+    // ----------------------------------------------------
+    function renderProjectorLayout(sessionData, questionData, classData, showResults, privateVal) {
+      if (!isProjectorWindow) return;
+
+      const projGrid = document.getElementById('proj-student-grid');
+      const projChart = document.getElementById('proj-chart-panel');
+      const projOptions = document.getElementById('proj-options-grid');
+      const rosterPane = document.getElementById('proj-roster-pane');
+      
+      if (!classData || !questionData) {
+        // Render wait screen if no active session
+        document.getElementById('proj-class-name').innerText = "Waiting for Session...";
+        document.getElementById('proj-progress-text').innerText = "0 Students Responded";
+        document.getElementById('proj-progress-bar-fill').style.width = '0%';
+        document.getElementById('proj-question-text').innerHTML = `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:20px; padding: 40px 0;">
+            <div style="font-size: 64px; color: var(--primary); animation: pulse 2s infinite;"><i data-lucide="monitor-play" style="width:72px;height:72px;"></i></div>
+            <div style="font-size: 28px; font-weight: 600;">Welcome to Clickers!</div>
+            <div style="font-size: 16px; color: var(--text-muted); max-width: 420px; line-height: 1.6; text-align: center;">
+              Please select a class and a question on the teacher dashboard, then click "Start Session" to begin.
+            </div>
+          </div>
+        `;
+        projChart.classList.remove('active');
+        projOptions.style.display = 'none';
+        if (rosterPane) rosterPane.style.display = 'none';
+        safeCreateIcons();
+        return;
+      }
+
+      if (rosterPane) rosterPane.style.display = 'flex';
+      
+      // Update header info
+      document.getElementById('proj-class-name').innerText = classData.name;
+      const responsesCount = Object.keys(sessionData.responses).length;
+      const totalCount = classData.students.length;
+      document.getElementById('proj-progress-text').innerText = `${responsesCount} / ${totalCount} Responded`;
+      
+      const pctFill = totalCount > 0 ? (responsesCount / totalCount) * 100 : 0;
+      document.getElementById('proj-progress-bar-fill').style.width = `${pctFill}%`;
+
+      // Update question text
+      document.getElementById('proj-question-text').innerText = questionData.text;
+
+      // Update Multiple Choice Text Options
+      ['A', 'B', 'C', 'D'].forEach(letter => {
+        document.getElementById(`proj-opt-text-${letter}`).innerText = questionData.options[letter];
+        
+        const cardEl = document.getElementById(`proj-opt-card-${letter}`);
+        cardEl.className = 'proj-option'; // Reset states
+        
+        if (showResults) {
+          if (questionData.correct === letter) {
+            cardEl.classList.add('revealed-correct');
+          } else {
+            cardEl.classList.add('revealed-incorrect');
+          }
+        }
+      });
+
+      // Show/Hide main chart representation
+      if (showResults) {
+        projChart.classList.add('active');
+        projOptions.style.display = 'none';
+        document.getElementById('proj-roster-pane').style.opacity = '0.4'; // fade roster checklist slightly
+        
+        // Calculate percentages
+        const counts = { A: 0, B: 0, C: 0, D: 0 };
+        const vals = Object.values(sessionData.responses);
+        vals.forEach(r => { if (counts[r.answer] !== undefined) counts[r.answer]++; });
+        const total = vals.length || 1;
+
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+          const count = counts[letter];
+          const pct = Math.round((count / total) * 100);
+          
+          const barEl = document.getElementById(`proj-bar-${letter}`);
+          const valEl = document.getElementById(`proj-val-${letter}`);
+          const wrapperEl = document.getElementById(`proj-wrapper-${letter}`);
+
+          barEl.style.height = `${pct}%`;
+          valEl.innerText = `${count} (${pct}%)`;
+          wrapperEl.classList.add('animated');
+
+          if (questionData.correct && questionData.correct === letter) {
+            barEl.classList.add('correct');
+            wrapperEl.classList.add('correct-answer');
+          } else {
+            barEl.classList.remove('correct');
+            wrapperEl.classList.remove('correct-answer');
+          }
+        });
+      } else {
+        projChart.classList.remove('active');
+        projOptions.style.display = 'grid';
+        document.getElementById('proj-roster-pane').style.opacity = '1';
+        
+        // Reset bar heights
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+          document.getElementById(`proj-bar-${letter}`).style.height = '0%';
+          document.getElementById(`proj-wrapper-${letter}`).classList.remove('animated');
+        });
+      }
+
+      // Update Roster Checklist
+      projGrid.innerHTML = '';
+      // Sort: if virtual students (ID starts with 'virtual'), sort by cardId. Otherwise sort by name.
+      const isVirtual = classData.students.length > 0 && classData.students[0].id.startsWith('virtual');
+      const sortedStudents = [...classData.students].sort((a, b) => {
+        if (isVirtual) return a.cardId - b.cardId;
+        return a.name.localeCompare(b.name);
+      });
+      
+      sortedStudents.forEach(student => {
+        const response = sessionData.responses[student.cardId];
+        const answered = !!response;
+
+        const studCard = document.createElement('div');
+        studCard.className = `proj-student-card ${answered ? 'responded' : ''}`;
+        
+        // Hide actual letters unless revealed, even in private value configs
+        let contentIndicator = '<span class="check-circle"><i data-lucide="check" style="width: 10px; height: 10px;"></i></span>';
+        if (answered && !privateVal) {
+          contentIndicator = `<span class="proj-answer-indicator" style="font-weight: 700; color: var(--accent-emerald); font-size:18px;">${response.answer}</span>`;
+        }
+
+        studCard.innerHTML = `
+          <span>${student.name}</span>
+          ${contentIndicator}
+        `;
+        projGrid.appendChild(studCard);
+      });
+      
+      safeCreateIcons();
+    }
+
+
+    // ----------------------------------------------------
+    // COMPONENT HELPER FUNCTIONS
+    // ----------------------------------------------------
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    if (isMobileScannerWindow) {
+      initMobileScanner();
+    } else if (!isProjectorWindow) {
+      initLiveSetup();
+    }
+  </script>
+</body>
+</html>
