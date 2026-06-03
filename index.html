@@ -802,6 +802,7 @@
     .results-chart-panel {
       display: none;
       animation: fadeIn 0.4s ease-out;
+      width: 100%;
     }
 
     .results-chart-panel.active {
@@ -911,6 +912,15 @@
       overflow: hidden;
     }
 
+    body.projector-mode #projector-view {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+    }
+
     body.projector-mode .projector-content {
       width: 100%;
       max-width: 1200px;
@@ -927,6 +937,10 @@
       padding: 40px;
       text-align: center;
       box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
 
     .proj-question-text {
@@ -941,6 +955,7 @@
       grid-template-columns: 1fr 1fr;
       gap: 20px;
       margin-top: 30px;
+      width: 100%;
     }
 
     .proj-option {
@@ -978,9 +993,93 @@
       color: var(--accent-emerald);
     }
 
+    /* Quick Poll styles for A, B, C, D colored squares */
+    .proj-options-grid.quick-poll {
+      display: flex !important;
+      justify-content: center;
+      align-items: center;
+      gap: 32px;
+      margin-top: 40px;
+      width: 100%;
+    }
+
+    .proj-options-grid.quick-poll .proj-option {
+      width: 180px;
+      height: 180px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 24px;
+      border: 3px solid transparent;
+      padding: 20px;
+      text-align: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .proj-options-grid.quick-poll #proj-opt-card-A {
+      background: linear-gradient(135deg, #f59e0b, #ffb020) !important;
+      border-color: #d97706 !important;
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3) !important;
+    }
+    .proj-options-grid.quick-poll #proj-opt-card-A .proj-option-letter {
+      color: #ffffff !important;
+      font-size: 72px;
+      font-weight: 800;
+    }
+
+    .proj-options-grid.quick-poll #proj-opt-card-B {
+      background: linear-gradient(135deg, #10b981, #34d399) !important;
+      border-color: #059669 !important;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3) !important;
+    }
+    .proj-options-grid.quick-poll #proj-opt-card-B .proj-option-letter {
+      color: #ffffff !important;
+      font-size: 72px;
+      font-weight: 800;
+    }
+
+    .proj-options-grid.quick-poll #proj-opt-card-C {
+      background: linear-gradient(135deg, #3b82f6, #60a5fa) !important;
+      border-color: #1d4ed8 !important;
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3) !important;
+    }
+    .proj-options-grid.quick-poll #proj-opt-card-C .proj-option-letter {
+      color: #ffffff !important;
+      font-size: 72px;
+      font-weight: 800;
+    }
+
+    .proj-options-grid.quick-poll #proj-opt-card-D {
+      background: linear-gradient(135deg, #ef4444, #f87171) !important;
+      border-color: #b91c1c !important;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3) !important;
+    }
+    .proj-options-grid.quick-poll #proj-opt-card-D .proj-option-letter {
+      color: #ffffff !important;
+      font-size: 72px;
+      font-weight: 800;
+    }
+
+    .proj-options-grid.quick-poll .proj-option.revealed-correct {
+      transform: scale(1.08);
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.5) !important;
+      border-color: var(--accent-emerald) !important;
+      border-width: 4px !important;
+    }
+
+    .proj-options-grid.quick-poll .proj-option.revealed-incorrect {
+      opacity: 0.25 !important;
+      transform: scale(0.92);
+    }
+
+    .proj-options-grid.quick-poll .proj-option span[id^="proj-opt-text-"] {
+      display: none !important;
+    }
+
     .proj-status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 16px;
       padding: 10px;
       overflow-y: auto;
@@ -998,6 +1097,7 @@
       font-size: 16px;
       font-weight: 500;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      min-width: 140px;
     }
 
     .proj-student-card.responded {
@@ -1028,10 +1128,13 @@
 
     .proj-header {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      text-align: center;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       padding-bottom: 16px;
+      gap: 10px;
     }
 
     .proj-class-name {
@@ -1614,7 +1717,7 @@
         <button><i data-lucide="play-circle"></i>Live Session</button>
       </li>
       <li class="nav-item" data-tab="classes-tab">
-        <button><i data-lucide="users"></i>Manage Classes</button>
+        <button><i data-lucide="printer"></i>Print Cards</button>
       </li>
       <li class="nav-item" data-tab="questions-tab">
         <button><i data-lucide="help-circle"></i>Question Bank</button>
@@ -1640,6 +1743,10 @@
         <div>
           <a class="remote-scan-link" id="remote-scan-link" href="#" target="_blank" rel="noopener">Mobile scanner link</a>
           <div class="remote-scan-help" id="remote-scan-help">Start the Clickers server, scan this code, then use the phone camera for the class.</div>
+          <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;" id="hosted-url-container">
+            <label for="input-hosted-url" style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Static Web URL (for file:// sync)</label>
+            <input type="url" id="input-hosted-url" class="form-input" style="font-size: 11px; padding: 4px 8px; height: 26px; width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: var(--text-main);" placeholder="e.g. https://username.github.io/Clickers">
+          </div>
         </div>
       </div>
     </div>
@@ -1682,8 +1789,11 @@
           <div id="setup-roster-pane">
             <div class="setup-grid">
               <div class="form-group">
-                <label for="session-class-select">Select Class</label>
-                <select class="form-select" id="session-class-select"></select>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label for="session-card-count-input" style="font-weight: 500;">Active Cards Count</label>
+                  <span id="display-session-card-count" style="font-weight: 700; color: var(--primary);">30 Cards</span>
+                </div>
+                <input type="range" id="session-card-count-input" min="1" max="50" value="30" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
               </div>
               <div class="form-group">
                 <label for="session-question-select">Select Question</label>
@@ -1738,6 +1848,11 @@
                     <i data-lucide="x-circle"></i>
                   </button>
                 </div>
+              </div>
+              
+              <!-- Active Question Image Display -->
+              <div id="active-question-image-container" style="display: none; text-align: center; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.15);">
+                <img id="active-question-image" src="" style="max-height: 160px; max-width: 100%; border-radius: 8px; object-fit: contain; border: 1px solid var(--card-border);">
               </div>
 
               <!-- Camera Screen wrapper -->
@@ -1816,15 +1931,26 @@
 
       <!-- ==================== VIEW: MANAGE CLASSES ==================== -->
       <div class="view-pane" id="classes-tab">
-        <div class="glass-card">
-          <div class="card-header">
-            <h3 class="card-title">Your Classes</h3>
-            <button class="btn btn-primary" id="btn-add-class">
-              <i data-lucide="plus-circle"></i> Create Class
-            </button>
+        <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+          <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 15px; margin-bottom: 20px;">
+            <h3 class="card-title">Print Clicker Cards</h3>
           </div>
-          <div class="list-wrapper" id="classes-list-container">
-            <!-- Populated via JS -->
+          <div class="card-body">
+            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+              Choose how many generic, reusable cards to print (1 to 50). These cards are not assigned to a specific student name, meaning they can be reused across all of your classes.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 30px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label for="slider-print-count" style="font-weight: 600; font-size: 14px; color: var(--text-main);">Number of cards to print</label>
+                <span id="display-print-count" style="font-size: 18px; font-weight: 700; color: var(--primary);">30 Cards</span>
+              </div>
+              <input type="range" id="slider-print-count" min="1" max="50" value="30" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
+            </div>
+            
+            <button class="btn btn-primary" id="btn-print-generic" style="width: 100%; padding: 12px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
+              <i data-lucide="printer"></i> Generate & Print Cards
+            </button>
           </div>
         </div>
       </div>
@@ -1865,48 +1991,6 @@
         </div>
       </div>
 
-    </div>
-  </div>
-
-  <!-- ==================== MODAL: CLASS EDITOR ==================== -->
-  <div class="modal-backdrop" id="class-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="card-title" id="class-modal-title">Create Class</h3>
-        <button class="btn btn-secondary btn-icon-only" onclick="closeModal('class-modal')">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label for="class-name-input">Class Name</label>
-          <input type="text" class="form-input" id="class-name-input" placeholder="e.g. Science Grade 5">
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-          <h4 class="card-title" style="font-size: 15px;">Student Roster</h4>
-          <button class="btn btn-secondary btn-emerald" id="btn-modal-add-student">
-            <i data-lucide="plus"></i> Add Student
-          </button>
-        </div>
-        <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 10px; margin-top: 10px;">
-          <table class="student-editor-table">
-            <thead>
-              <tr>
-                <th style="width: 15%;">Card ID</th>
-                <th>Student Name</th>
-                <th style="width: 15%; text-align: center;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="student-editor-tbody">
-              <!-- Populated via JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('class-modal')">Cancel</button>
-        <button class="btn btn-primary" id="btn-class-save">Save Class</button>
-      </div>
     </div>
   </div>
 
@@ -1951,6 +2035,23 @@
           </div>
           <span style="font-size: 12px; color: var(--text-muted);">Select the radio button next to the correct answer.</span>
         </div>
+        
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="question-image-input" style="display: block; margin-bottom: 6px; font-weight: 500;">Question Image (Optional)</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="question-image-input" accept="image/*" style="display: none;">
+            <button class="btn btn-secondary" type="button" onclick="document.getElementById('question-image-input').click()">
+              <i data-lucide="image"></i> Choose Image
+            </button>
+            <button class="btn btn-rose" type="button" id="btn-question-image-remove" style="display: none; height: 36px; padding: 0 12px; font-size: 13px; align-items: center; justify-content: center;" title="Remove Image">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px; margin-right: 4px;"></i> Remove
+            </button>
+            <span id="question-image-filename" style="font-size: 13px; color: var(--text-muted);">No image selected</span>
+          </div>
+          <div id="question-image-preview-container" style="display: none; margin-top: 12px; border: 1px solid var(--card-border); border-radius: 10px; padding: 6px; max-width: 240px; background: rgba(0,0,0,0.15);">
+            <img id="question-image-preview" src="" style="max-width: 100%; border-radius: 6px; max-height: 120px; display: block; object-fit: contain;">
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('question-modal')">Cancel</button>
@@ -1971,9 +2072,9 @@
       
       <!-- Top header: class metadata and progress -->
       <div class="proj-header">
-        <div>
+        <div style="display: flex; flex-direction: column; align-items: center;">
           <h2 id="proj-class-name" class="proj-class-name">Roster</h2>
-          <div class="proj-progress-bar-bg" style="width: 300px;">
+          <div class="proj-progress-bar-bg" style="width: 300px; margin: 8px auto 0;">
             <div class="proj-progress-bar-fill" id="proj-progress-bar-fill"></div>
           </div>
         </div>
@@ -1983,6 +2084,10 @@
       <!-- Center: Main question card or large bar chart -->
       <div class="proj-question-card" id="proj-main-card">
         <div class="proj-question-text" id="proj-question-text">Loading question...</div>
+        
+        <div id="proj-question-image-container" style="display: none; text-align: center; margin-top: 20px; margin-bottom: 10px;">
+          <img id="proj-question-image" src="" style="max-height: 240px; max-width: 100%; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.05); padding: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        </div>
         
         <!-- Answers Reveal Screen (hidden initially) -->
         <div class="results-chart-panel" id="proj-chart-panel">
@@ -2041,7 +2146,7 @@
 
       <!-- Bottom: Responsive Student Grid (fades slightly when chart reveals) -->
       <div style="flex-grow: 1; min-height: 200px; display: flex; flex-direction: column;" id="proj-roster-pane">
-        <h4 style="font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 12px;">Roster Submitted Checklist</h4>
+        <h4 style="font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 12px; text-align: center;">Roster Submitted Checklist</h4>
         <div class="proj-status-grid" id="proj-student-grid"></div>
       </div>
 
@@ -2184,36 +2289,16 @@
     // ----------------------------------------------------
     // LOCAL DATA STORAGE & SEEDING
     // ----------------------------------------------------
-    let classes = [];
     let questions = [];
-    try {
-      classes = JSON.parse(localStorage.getItem('clickers_classes')) || [];
-    } catch (e) {
-      console.error('Error parsing clickers_classes from localStorage:', e);
-    }
     try {
       questions = JSON.parse(localStorage.getItem('clickers_questions')) || [];
     } catch (e) {
       console.error('Error parsing clickers_questions from localStorage:', e);
     }
-
-    // Seeding default database for first-time use
-    if (classes.length === 0) {
-      classes = [
-        {
-          id: 'class_demo',
-          name: 'Science Grade 5 (Demo)',
-          students: [
-            { id: 'stud_1', name: 'Alice Smith', cardId: 1 },
-            { id: 'stud_2', name: 'Bob Johnson', cardId: 2 },
-            { id: 'stud_3', name: 'Charlie Miller', cardId: 3 },
-            { id: 'stud_4', name: 'Diana Prince', cardId: 4 },
-            { id: 'stud_5', name: 'Ethan Hunt', cardId: 5 }
-          ]
-        }
-      ];
-      localStorage.setItem('clickers_classes', JSON.stringify(classes));
-    }
+    // Clean up old classes storage
+    try {
+      localStorage.removeItem('clickers_classes');
+    } catch (e) {}
 
     if (questions.length === 0) {
       questions = [
@@ -2260,13 +2345,12 @@
         // Dynamically configure heading bar title
         const titles = {
           'live-tab': 'Live Session',
-          'classes-tab': 'Manage Classes',
+          'classes-tab': 'Print Cards',
           'questions-tab': 'Question Bank'
         };
         document.getElementById('page-title-text').innerText = titles[tabId] || 'Clickers';
         
         // Load tab state content
-        if (tabId === 'classes-tab') renderClassesList();
         if (tabId === 'questions-tab') renderQuestionsList();
         if (tabId === 'live-tab') initLiveSetup();
       });
@@ -2302,6 +2386,9 @@
       window.updateState = function(sessionData, questionData, classData, showResults, privateMode) {
         renderProjectorLayout(sessionData, questionData, classData, showResults, privateMode);
       };
+
+      // Call render once on load to show the initial "Waiting for Session" screen and hide default raw HTML option cards
+      renderProjectorLayout(null, null, null, false, true);
 
       // Notify opener that this child has finished loading
       try {
@@ -2381,154 +2468,105 @@
     }
 
     // ----------------------------------------------------
-    // MANAGING CLASSES & STUDENT ROSTERS
+    // GENERIC CLICKER CARD PRINTING SETTINGS
     // ----------------------------------------------------
-    let editingClassId = null;
-    let localStudents = [];
-
-    function renderClassesList() {
-      const listContainer = document.getElementById('classes-list-container');
-      listContainer.innerHTML = '';
-      
-      classes.forEach(cls => {
-        const row = document.createElement('div');
-        row.className = 'item-row';
-        row.innerHTML = `
-          <div class="item-meta">
-            <div class="item-title">${cls.name}</div>
-            <div class="item-subtitle">${cls.students.length} Students Roster</div>
-          </div>
-          <div class="row-actions">
-            <button class="btn btn-secondary" onclick="openPrintPreview('${cls.id}')" title="Print Cards">
-              <i data-lucide="printer" style="width:16px;height:16px;"></i> Print Cards
-            </button>
-            <button class="btn btn-secondary" onclick="editClass('${cls.id}')" title="Edit Class">
-              <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Edit
-            </button>
-            <button class="btn btn-rose btn-icon-only" onclick="deleteClass('${cls.id}')" title="Delete Class">
-              <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
-            </button>
-          </div>
-        `;
-        listContainer.appendChild(row);
+    const sliderPrintCount = document.getElementById('slider-print-count');
+    const displayPrintCount = document.getElementById('display-print-count');
+    if (sliderPrintCount && displayPrintCount) {
+      sliderPrintCount.addEventListener('input', (e) => {
+        displayPrintCount.innerText = `${e.target.value} Cards`;
       });
-      safeCreateIcons();
     }
 
-    document.getElementById('btn-add-class').addEventListener('click', () => {
-      editingClassId = null;
-      localStudents = [];
-      document.getElementById('class-modal-title').innerText = 'Create Class';
-      document.getElementById('class-name-input').value = '';
-      renderStudentEditorTable();
-      openModal('class-modal');
-    });
-
-    document.getElementById('btn-modal-add-student').addEventListener('click', () => {
-      // Auto increment Card ID based on existing max
-      const nextCardId = localStudents.reduce((max, s) => s.cardId > max ? s.cardId : max, 0) + 1;
-      localStudents.push({
-        id: 'stud_' + Date.now() + Math.random().toString(36).substr(2, 4),
-        name: '',
-        cardId: nextCardId
+    const btnPrintGeneric = document.getElementById('btn-print-generic');
+    if (btnPrintGeneric) {
+      btnPrintGeneric.addEventListener('click', () => {
+        const count = parseInt(sliderPrintCount.value) || 30;
+        openPrintPreview(count);
       });
-      renderStudentEditorTable();
-    });
+    }
 
-    function renderStudentEditorTable() {
-      const tbody = document.getElementById('student-editor-tbody');
-      tbody.innerHTML = '';
-      
-      localStudents.forEach((student, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>
-            <input type="number" class="form-input" style="padding: 6px 8px;" value="${student.cardId}" 
-              onchange="updateLocalStudentCardId(${idx}, this.value)">
-          </td>
-          <td>
-            <input type="text" class="form-input" style="padding: 6px 8px;" placeholder="Student Full Name" value="${student.name}" 
-              onchange="updateLocalStudentName(${idx}, this.value)">
-          </td>
-          <td style="text-align: center;">
-            <button class="btn btn-rose btn-icon-only" style="padding: 4px;" onclick="removeLocalStudent(${idx})">
-              <i data-lucide="trash" style="width: 14px; height: 14px;"></i>
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+    const sliderSessionCount = document.getElementById('session-card-count-input');
+    const displaySessionCount = document.getElementById('display-session-card-count');
+    if (sliderSessionCount && displaySessionCount) {
+      sliderSessionCount.addEventListener('input', (e) => {
+        displaySessionCount.innerText = `${e.target.value} Cards`;
       });
-      safeCreateIcons();
     }
-
-    function updateLocalStudentName(idx, val) {
-      localStudents[idx].name = val;
-    }
-
-    function updateLocalStudentCardId(idx, val) {
-      localStudents[idx].cardId = parseInt(val) || 1;
-    }
-
-    function removeLocalStudent(idx) {
-      localStudents.splice(idx, 1);
-      renderStudentEditorTable();
-    }
-
-    document.getElementById('btn-class-save').addEventListener('click', () => {
-      const name = document.getElementById('class-name-input').value.trim();
-      if (!name) {
-        alert('Please enter a class name.');
-        return;
-      }
-      
-      // Clean names
-      const studentsFiltered = localStudents.filter(s => s.name.trim() !== '');
-
-      if (editingClassId) {
-        // Edit existing
-        const idx = classes.findIndex(c => c.id === editingClassId);
-        if (idx !== -1) {
-          classes[idx].name = name;
-          classes[idx].students = studentsFiltered;
-        }
-      } else {
-        // Create new
-        classes.push({
-          id: 'class_' + Date.now(),
-          name: name,
-          students: studentsFiltered
-        });
-      }
-
-      localStorage.setItem('clickers_classes', JSON.stringify(classes));
-      closeModal('class-modal');
-      renderClassesList();
-    });
-
-    window.editClass = function(classId) {
-      const cls = classes.find(c => c.id === classId);
-      if (!cls) return;
-      
-      editingClassId = cls.id;
-      document.getElementById('class-modal-title').innerText = 'Edit Class';
-      document.getElementById('class-name-input').value = cls.name;
-      localStudents = JSON.parse(JSON.stringify(cls.students)); // Deep clone
-      renderStudentEditorTable();
-      openModal('class-modal');
-    };
-
-    window.deleteClass = function(classId) {
-      if (confirm('Are you sure you want to delete this class roster?')) {
-        classes = classes.filter(c => c.id !== classId);
-        localStorage.setItem('clickers_classes', JSON.stringify(classes));
-        renderClassesList();
-      }
-    };
 
     // ----------------------------------------------------
-    // MANAGING QUESTIONS BANK
+    // MANAGING QUESTIONS BANK & MEDIA SUPPORT
     // ----------------------------------------------------
     let editingQuestionId = null;
+    let selectedQuestionImageBase64 = '';
+
+    // Handle Image upload and compression
+    const questionImageInput = document.getElementById('question-image-input');
+    if (questionImageInput) {
+      questionImageInput.addEventListener('change', handleQuestionImageSelect);
+    }
+
+    const btnQuestionImageRemove = document.getElementById('btn-question-image-remove');
+    if (btnQuestionImageRemove) {
+      btnQuestionImageRemove.addEventListener('click', () => {
+        selectedQuestionImageBase64 = '';
+        if (questionImageInput) questionImageInput.value = '';
+        document.getElementById('question-image-filename').innerText = 'No image selected';
+        document.getElementById('question-image-preview').src = '';
+        document.getElementById('question-image-preview-container').style.display = 'none';
+        btnQuestionImageRemove.style.display = 'none';
+      });
+    }
+
+    function handleQuestionImageSelect(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const filenameSpan = document.getElementById('question-image-filename');
+      if (filenameSpan) filenameSpan.innerText = 'Compressing...';
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 400; // Limit dimensions to 400px to fit LocalStorage limits
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round(height * (maxDim / width));
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round(width * (maxDim / height));
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to JPEG base64 data URL at 0.75 quality
+          selectedQuestionImageBase64 = canvas.toDataURL('image/jpeg', 0.75);
+
+          if (filenameSpan) filenameSpan.innerText = file.name;
+          document.getElementById('question-image-preview').src = selectedQuestionImageBase64;
+          document.getElementById('question-image-preview-container').style.display = 'block';
+          if (btnQuestionImageRemove) btnQuestionImageRemove.style.display = 'inline-flex';
+        };
+        img.onerror = () => {
+          if (filenameSpan) filenameSpan.innerText = 'Failed to load image';
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
 
     function renderQuestionsList() {
       const listContainer = document.getElementById('questions-list-container');
@@ -2540,12 +2578,20 @@
         
         let correctOptionText = q.correct ? `${q.correct}: ${q.options[q.correct]}` : 'None Set';
         
+        let imgHtml = '';
+        if (q.image) {
+          imgHtml = `<img src="${q.image}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover; margin-right: 15px; border: 1px solid var(--card-border); background: rgba(0,0,0,0.15);">`;
+        }
+
         row.innerHTML = `
-          <div class="item-meta" style="flex-grow: 1; max-width: 75%;">
-            <div class="item-title">${q.text}</div>
-            <div class="item-subtitle" style="margin-top: 4px; display: flex; gap: 16px;">
-              <span><strong>Correct:</strong> <span style="color:#34d399">${correctOptionText}</span></span>
-              <span><strong>Options:</strong> A: ${q.options.A}, B: ${q.options.B}...</span>
+          <div style="display: flex; align-items: center; flex-grow: 1; max-width: 75%;">
+            ${imgHtml}
+            <div class="item-meta">
+              <div class="item-title">${q.text}</div>
+              <div class="item-subtitle" style="margin-top: 4px; display: flex; gap: 16px;">
+                <span><strong>Correct:</strong> <span style="color:#34d399">${correctOptionText}</span></span>
+                <span><strong>Options:</strong> A: ${q.options.A}, B: ${q.options.B}...</span>
+              </div>
             </div>
           </div>
           <div class="row-actions">
@@ -2564,6 +2610,13 @@
 
     document.getElementById('btn-add-question').addEventListener('click', () => {
       editingQuestionId = null;
+      selectedQuestionImageBase64 = '';
+      if (questionImageInput) questionImageInput.value = '';
+      document.getElementById('question-image-filename').innerText = 'No image selected';
+      document.getElementById('question-image-preview').src = '';
+      document.getElementById('question-image-preview-container').style.display = 'none';
+      if (btnQuestionImageRemove) btnQuestionImageRemove.style.display = 'none';
+
       document.getElementById('question-modal-title').innerText = 'Add Question';
       document.getElementById('question-text-input').value = '';
       document.getElementById('opt-A').value = '';
@@ -2596,7 +2649,8 @@
             id: editingQuestionId,
             text,
             options: { A: oA, B: oB, C: oC, D: oD },
-            correct
+            correct,
+            image: selectedQuestionImageBase64
           };
         }
       } else {
@@ -2604,7 +2658,8 @@
           id: 'q_' + Date.now(),
           text,
           options: { A: oA, B: oB, C: oC, D: oD },
-          correct
+          correct,
+          image: selectedQuestionImageBase64
         });
       }
 
@@ -2628,6 +2683,21 @@
       document.querySelectorAll('input[name="correct-opt"]').forEach(r => {
         r.checked = (r.value === q.correct);
       });
+
+      selectedQuestionImageBase64 = q.image || '';
+      if (questionImageInput) questionImageInput.value = '';
+      if (selectedQuestionImageBase64) {
+        document.getElementById('question-image-filename').innerText = 'Image loaded';
+        document.getElementById('question-image-preview').src = selectedQuestionImageBase64;
+        document.getElementById('question-image-preview-container').style.display = 'block';
+        if (btnQuestionImageRemove) btnQuestionImageRemove.style.display = 'inline-flex';
+      } else {
+        document.getElementById('question-image-filename').innerText = 'No image selected';
+        document.getElementById('question-image-preview').src = '';
+        document.getElementById('question-image-preview-container').style.display = 'none';
+        if (btnQuestionImageRemove) btnQuestionImageRemove.style.display = 'none';
+      }
+
       openModal('question-modal');
     };
 
@@ -2640,12 +2710,97 @@
     };
 
     // ----------------------------------------------------
+    // QUESTION BANK LOAD/SAVE (JSON EXPORT/IMPORT)
+    // ----------------------------------------------------
+    const btnSaveQuestions = document.getElementById('btn-save-questions');
+    if (btnSaveQuestions) {
+      btnSaveQuestions.addEventListener('click', () => {
+        if (questions.length === 0) {
+          alert("Your Question Bank is empty. Add questions before saving.");
+          return;
+        }
+        const dataStr = JSON.stringify(questions, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'clickers-question-set.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    const btnLoadQuestionsTrigger = document.getElementById('btn-load-questions-trigger');
+    const inputLoadQuestions = document.getElementById('input-load-questions');
+    if (btnLoadQuestionsTrigger && inputLoadQuestions) {
+      btnLoadQuestionsTrigger.addEventListener('click', () => {
+        inputLoadQuestions.click();
+      });
+
+      inputLoadQuestions.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const loaded = JSON.parse(reader.result);
+            if (!Array.isArray(loaded)) {
+              throw new Error("Invalid file format. Questions must be an array.");
+            }
+            const validated = loaded.map(q => {
+              if (!q.text || !q.options) {
+                throw new Error("Invalid question structure. Missing text or options.");
+              }
+              return {
+                id: q.id || 'q_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                text: String(q.text),
+                options: {
+                  A: String(q.options.A || ''),
+                  B: String(q.options.B || ''),
+                  C: String(q.options.C || ''),
+                  D: String(q.options.D || '')
+                },
+                correct: String(q.correct || ''),
+                image: q.image ? String(q.image) : ''
+              };
+            });
+
+            if (confirm(`Do you want to append these ${validated.length} questions to your Question Bank, or overwrite it?\n\nClick OK to APPEND, or Cancel to OVERWRITE.`)) {
+              questions = questions.concat(validated);
+            } else if (confirm(`Are you sure you want to overwrite your Question Bank with these ${validated.length} questions? This will erase current questions.`)) {
+              questions = validated;
+            } else {
+              e.target.value = '';
+              return;
+            }
+
+            localStorage.setItem('clickers_questions', JSON.stringify(questions));
+            renderQuestionsList();
+            
+            // Reload setup selector list
+            if (document.getElementById('session-question-select')) {
+              const qSelect = document.getElementById('session-question-select');
+              qSelect.innerHTML = '';
+              questions.forEach(q => {
+                qSelect.innerHTML += `<option value="${q.id}">${q.text.substring(0, 50)}...</option>`;
+              });
+            }
+            alert("Question set loaded successfully!");
+          } catch (err) {
+            alert("Error loading questions: " + err.message);
+          }
+          e.target.value = '';
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    // ----------------------------------------------------
     // PRINT CARDS ENGINE
     // ----------------------------------------------------
-    window.openPrintPreview = function(classId) {
-      const cls = classes.find(c => c.id === classId);
-      if (!cls) return;
-      
+    window.openPrintPreview = function(count) {
       // Shift main container states to Print View
       document.getElementById('sidebar-nav').style.display = 'none';
       document.getElementById('main-content').style.display = 'flex';
@@ -2657,7 +2812,7 @@
       printTab.classList.add('active');
       document.getElementById('page-title-text').innerText = 'Print Cards';
       
-      document.getElementById('print-class-title').innerText = `Print Cards for ${cls.name}`;
+      document.getElementById('print-class-title').innerText = `Print Clicker Cards (1-${count})`;
       
       // Build dynamic printable nodes
       const printRoot = document.getElementById('print-preview-root');
@@ -2666,13 +2821,8 @@
       const printSection = document.getElementById('print-section');
       printSection.innerHTML = '';
       
-      if (cls.students.length === 0) {
-        printRoot.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">Roster is empty. Add students before printing.</div>`;
-        return;
-      }
-
-      cls.students.forEach(student => {
-        const svgCode = generateArucoSVG(student.cardId, 230);
+      for (let cardId = 1; cardId <= count; cardId++) {
+        const svgCode = generateArucoSVG(cardId, 230);
         
         // Renders visual preview inside app (styled for screen)
         const previewFrame = document.createElement('div');
@@ -2691,8 +2841,8 @@
             <div class="print-label print-label-b">C</div>
             <div class="print-label print-label-r">D</div>
             <div class="card-back-info">
-              <h2 class="back-student-name">${student.name}</h2>
-              <div class="back-card-id">Card #${student.cardId}</div>
+              <h2 class="back-student-name">Card #${cardId}</h2>
+              <div class="back-card-id">Card ID: ${cardId}</div>
               <div class="back-instructions">
                 <span class="highlight">Hold your choice at the TOP</span><br>
                 facing the teacher's camera.
@@ -2706,7 +2856,7 @@
         const printableCard = previewFrame.cloneNode(true);
         printableCard.className = 'print-card';
         printSection.appendChild(printableCard);
-      });
+      }
       safeCreateIcons();
     };
 
@@ -2721,10 +2871,9 @@
       // Go back to Classes tab
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       const classNavItem = document.querySelector('[data-tab="classes-tab"]');
-      classNavItem.classList.add('active');
+      if (classNavItem) classNavItem.classList.add('active');
       document.getElementById('classes-tab').classList.add('active');
-      document.getElementById('page-title-text').innerText = 'Manage Classes';
-      renderClassesList();
+      document.getElementById('page-title-text').innerText = 'Print Cards';
     });
 
     document.getElementById('btn-print-trigger').addEventListener('click', () => {
@@ -2748,6 +2897,8 @@
     let remotePollTimer = null;
     let remoteServerAvailable = false;
     let remoteQrHidden = false;
+    let cloudEventSource = null;
+    window.discoveredApiBase = '';
 
     function setQrPanelHidden(hidden) {
       remoteQrHidden = hidden;
@@ -2797,14 +2948,31 @@
     }
 
     async function getRemoteScannerOrigin() {
+      let base = '';
+      if (window.location.protocol === 'file:') {
+        base = 'http://localhost:8000';
+      }
       try {
-        const res = await fetch('/api/server-info', { cache: 'no-store' });
+        const res = await fetch((base || '') + '/api/server-info', { cache: 'no-store' });
         if (!res.ok) throw new Error('server-info unavailable');
         const info = await res.json();
         remoteServerAvailable = true;
+        window.discoveredApiBase = base || window.location.origin;
         return info.preferredOrigin || window.location.origin;
       } catch (err) {
+        if (window.location.protocol === 'file:' && base === 'http://localhost:8000') {
+          try {
+            const res2 = await fetch('http://127.0.0.1:8000/api/server-info', { cache: 'no-store' });
+            if (res2.ok) {
+              const info2 = await res2.json();
+              remoteServerAvailable = true;
+              window.discoveredApiBase = 'http://127.0.0.1:8000';
+              return info2.preferredOrigin || window.location.origin;
+            }
+          } catch (e) {}
+        }
         remoteServerAvailable = false;
+        window.discoveredApiBase = '';
         return window.location.origin;
       }
     }
@@ -2820,6 +2988,23 @@
     }
 
     function mobileScannerUrl(sessionId, origin) {
+      const customUrl = localStorage.getItem('clickers_hosted_url') || '';
+      if (window.location.protocol === 'file:' && customUrl) {
+        try {
+          const parsed = new URL(customUrl);
+          let basePath = parsed.pathname;
+          if (!basePath.endsWith('.html') && !basePath.endsWith('/')) {
+            basePath += '/index.html';
+          } else if (basePath.endsWith('/')) {
+            basePath += 'index.html';
+          }
+          const url = new URL(basePath, parsed.origin);
+          url.searchParams.set('teacherOrigin', 'https://ntfy.sh');
+          url.hash = `mobile-scan/${encodeURIComponent(sessionId)}`;
+          return url.toString();
+        } catch (e) {}
+      }
+
       const teacherOrigin = normalizeRemoteOrigin(origin);
       if (!teacherOrigin) {
         return `${window.location.pathname}#mobile-scan/${encodeURIComponent(sessionId)}`;
@@ -2844,9 +3029,18 @@
         link.title = mobileUrl;
       }
       if (help) {
-        help.innerText = remoteServerAvailable
-          ? 'Use the phone on the same Wi-Fi network. If the phone blocks camera access, open this URL through HTTPS.'
-          : 'Run server.py for phone sync. Without it, this link only opens another local copy.';
+        if (remoteServerAvailable) {
+          help.innerText = 'Local server active. Scan this QR code to connect your phone.';
+        } else if (window.location.protocol === 'file:') {
+          const hasHostedUrl = !!localStorage.getItem('clickers_hosted_url');
+          if (hasHostedUrl) {
+            help.innerText = 'Cloud Sync active. Scan this QR code to connect your phone from any cellular or Wi-Fi network.';
+          } else {
+            help.innerText = 'Running as a local file. To sync with a mobile phone without a local server, host this HTML file on GitHub Pages and enter the URL below.';
+          }
+        } else {
+          help.innerText = 'Cloud Sync active. Scan this QR code to connect your phone from any cellular or Wi-Fi network.';
+        }
       }
       if (canvas && typeof window.qrcode === 'function') {
         try {
@@ -2870,18 +3064,31 @@
           console.error('QR render failed:', err);
         }
       }
-      setRemoteStatus(remoteServerAvailable ? 'Ready' : 'Server needed');
+      const hasHostedUrl = !!localStorage.getItem('clickers_hosted_url');
+      setRemoteStatus(remoteServerAvailable ? 'Ready' : (window.location.protocol === 'file:' && !hasHostedUrl ? 'Setup URL' : 'Cloud Ready'));
       safeCreateIcons();
     }
 
     async function resetRemoteSessionOnServer() {
       if (!remoteSessionId) return;
       try {
-        await fetch(`/api/session/${encodeURIComponent(remoteSessionId)}/reset`, {
-          method: 'POST'
+        const apiBase = window.discoveredApiBase || '';
+        if (apiBase) {
+          await fetch(`${apiBase}/api/session/${encodeURIComponent(remoteSessionId)}/reset`, {
+            method: 'POST'
+          });
+        }
+      } catch (err) {
+        console.warn('Remote session reset failed locally:', err);
+      }
+      try {
+        const topicUrl = `https://ntfy.sh/clickers-session-${encodeURIComponent(remoteSessionId)}`;
+        await fetch(topicUrl, {
+          method: 'POST',
+          body: JSON.stringify({ type: 'reset', timestamp: Date.now() })
         });
       } catch (err) {
-        console.warn('Remote session reset failed:', err);
+        console.warn('Remote session reset failed on cloud:', err);
       }
     }
 
@@ -2900,7 +3107,7 @@
         if (!student || !response || !response.answer) return;
         const local = activeSession.responses[student.cardId];
         const timestamp = response.timestamp || Date.now();
-        if (!local || timestamp >= (local.timestamp || 0)) {
+        if (!local || response.answer !== local.answer || timestamp > local.timestamp) {
           activeSession.responses[student.cardId] = {
             answer: response.answer,
             timestamp,
@@ -2912,10 +3119,76 @@
       return changed;
     }
 
+    function startCloudSync() {
+      stopCloudSync();
+      if (!remoteSessionId) return;
+
+      const topicId = `clickers-session-${remoteSessionId}`;
+      const sseUrl = `https://ntfy.sh/${encodeURIComponent(topicId)}/sse?since=all`;
+      
+      console.log('Connecting to cloud sync:', sseUrl);
+      cloudEventSource = new EventSource(sseUrl);
+      
+      cloudEventSource.onmessage = function(e) {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.event === 'message' && data.message) {
+            const payload = JSON.parse(data.message);
+            if (payload.type === 'response') {
+              const remoteResponses = {
+                [payload.cardId]: {
+                  answer: payload.answer,
+                  timestamp: payload.timestamp
+                }
+              };
+              if (mergeRemoteResponses(remoteResponses)) {
+                updateSessionStats();
+                renderLiveStudentGrid();
+                pushStateToProjector();
+              }
+            } else if (payload.type === 'reset') {
+              activeSession.responses = {};
+              updateSessionStats();
+              renderLiveStudentGrid();
+              pushStateToProjector();
+            }
+          }
+        } catch (err) {
+          console.warn('Error parsing cloud sync message:', err);
+        }
+      };
+
+      cloudEventSource.onerror = function(e) {
+        console.warn('Cloud sync EventSource encountered an error:', e);
+      };
+    }
+
+    function stopCloudSync() {
+      if (cloudEventSource) {
+        try {
+          cloudEventSource.close();
+        } catch (e) {}
+        cloudEventSource = null;
+      }
+    }
+
     async function syncRemoteResponses() {
       if (!remoteSessionId || !currentClass) return;
+      if (!window.discoveredApiBase) {
+        remoteServerAvailable = false;
+        const hasHostedUrl = !!localStorage.getItem('clickers_hosted_url');
+        if (cloudEventSource && cloudEventSource.readyState === EventSource.OPEN) {
+          setRemoteStatus('Cloud Linked');
+        } else if (cloudEventSource && cloudEventSource.readyState === EventSource.CONNECTING) {
+          setRemoteStatus('Cloud Connecting');
+        } else {
+          setRemoteStatus((window.location.protocol === 'file:' && !hasHostedUrl) ? 'Offline' : 'Cloud Ready');
+        }
+        return;
+      }
       try {
-        const res = await fetch(`/api/session/${encodeURIComponent(remoteSessionId)}`, { cache: 'no-store' });
+        const apiBase = window.discoveredApiBase || '';
+        const res = await fetch(`${apiBase}/api/session/${encodeURIComponent(remoteSessionId)}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('session unavailable');
         const data = await res.json();
         remoteServerAvailable = true;
@@ -2927,7 +3200,11 @@
         }
       } catch (err) {
         remoteServerAvailable = false;
-        setRemoteStatus('Server offline');
+        if (cloudEventSource && cloudEventSource.readyState === EventSource.OPEN) {
+          setRemoteStatus('Cloud Linked');
+        } else {
+          setRemoteStatus('Server offline');
+        }
       }
     }
 
@@ -2938,12 +3215,14 @@
       setRemoteStatus('Preparing link');
       await resetRemoteSessionOnServer();
       await renderRemoteScannerInvite();
+      startCloudSync();
       await syncRemoteResponses();
       remotePollTimer = setInterval(syncRemoteResponses, 800);
     }
 
     function stopRemoteSession() {
       stopRemotePolling();
+      stopCloudSync();
       remoteSessionId = '';
       setRemoteStatus('No active session');
     }
@@ -2955,18 +3234,13 @@
       stopWebcam();
       stopRemoteSession();
 
-      // Populate Select pickers
-      const classSelect = document.getElementById('session-class-select');
-      classSelect.innerHTML = '';
-      classes.forEach(c => {
-        classSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.students.length} students)</option>`;
-      });
-
       const qSelect = document.getElementById('session-question-select');
-      qSelect.innerHTML = '';
-      questions.forEach(q => {
-        qSelect.innerHTML += `<option value="${q.id}">${q.text.substring(0, 50)}...</option>`;
-      });
+      if (qSelect) {
+        qSelect.innerHTML = '';
+        questions.forEach(q => {
+          qSelect.innerHTML += `<option value="${q.id}">${q.text.substring(0, 50)}...</option>`;
+        });
+      }
     }
 
     // Setup tab toggles
@@ -3012,6 +3286,14 @@
       document.getElementById('active-question-display').innerText = currentQuestion.text;
       document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
 
+      // Hide active question image container since Quick Poll has no image
+      const imgContainer = document.getElementById('active-question-image-container');
+      const imgEl = document.getElementById('active-question-image');
+      if (imgContainer && imgEl) {
+        imgEl.src = '';
+        imgContainer.style.display = 'none';
+      }
+
       activeSession = { responses: {} };
       revealResults = false;
       privateMode = true; // start in private mode
@@ -3033,20 +3315,43 @@
     });
 
     document.getElementById('btn-start-session').addEventListener('click', () => {
-      const classId = document.getElementById('session-class-select').value;
       const qId = document.getElementById('session-question-select').value;
+      const cardCount = parseInt(document.getElementById('session-card-count-input').value) || 30;
       
-      currentClass = classes.find(c => c.id === classId);
       currentQuestion = questions.find(q => q.id === qId);
 
-      if (!currentClass || !currentQuestion) {
-        alert('Please select a valid class and question.');
+      if (!currentQuestion) {
+        alert('Please select a valid question.');
         return;
       }
 
+      // Build virtual class roster on the fly based on active card slider value
+      currentClass = {
+        id: 'class_generic_session',
+        name: 'Live Session',
+        students: Array.from({ length: cardCount }, (_, i) => ({
+          id: `virtual_${i + 1}`,
+          name: `Card ${i + 1}`,
+          cardId: i + 1
+        }))
+      };
+
       // Configure Active UI Text
       document.getElementById('active-question-display').innerText = currentQuestion.text;
-      document.getElementById('active-class-display').innerText = currentClass.name;
+      document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
+
+      // Update Active Question Image
+      const imgContainer = document.getElementById('active-question-image-container');
+      const imgEl = document.getElementById('active-question-image');
+      if (imgContainer && imgEl) {
+        if (currentQuestion.image) {
+          imgEl.src = currentQuestion.image;
+          imgContainer.style.display = 'block';
+        } else {
+          imgEl.src = '';
+          imgContainer.style.display = 'none';
+        }
+      }
 
       activeSession = { responses: {} };
       revealResults = false;
@@ -3130,7 +3435,7 @@
       const screenHeight = window.screen.height;
       const windowFeatures = `width=${screenWidth},height=${screenHeight},left=0,top=0,menubar=no,toolbar=no,location=no,status=no`;
       
-      const projUrl = window.location.origin + window.location.pathname + '#projector';
+      const projUrl = window.location.href.split('#')[0] + '#projector';
       const win = window.open(projUrl, 'clicker_projector', windowFeatures);
       if (win) {
         win.focus();
@@ -3466,30 +3771,56 @@
 
       mobileLastSent[cardId] = { answer, timestamp: now };
       const payload = { cardId, answer, timestamp: now };
-      let postError = null;
-      try {
-        const res = await fetchWithTimeout(mobileSessionApiUrl('response'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-          cache: 'no-store',
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error('server rejected response');
-        markMobileResponseSynced(cardId, answer);
-        return;
-      } catch (err) {
-        postError = err;
+      
+      const isCloudMode = mobileTeacherOrigin && (mobileTeacherOrigin.startsWith('https:') || mobileTeacherOrigin.includes('ntfy.sh'));
+      
+      if (!isCloudMode) {
+        let postError = null;
+        try {
+          const res = await fetchWithTimeout(mobileSessionApiUrl('response'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            cache: 'no-store',
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error('server rejected response');
+          markMobileResponseSynced(cardId, answer);
+          return;
+        } catch (err) {
+          postError = err;
+        }
+
+        try {
+          const res = await fetchWithTimeout(mobileSessionApiUrl('response', payload), {
+            method: 'GET',
+            cache: 'no-store'
+          });
+          if (!res.ok) throw new Error('server rejected fallback response');
+          markMobileResponseSynced(cardId, answer);
+          return;
+        } catch (err) {
+          console.warn('Mobile response local sync failed:', { postError, fallbackError: err });
+        }
       }
 
+      // Cloud relay fallback (or direct in Cloud Mode)
       try {
-        const res = await fetchWithTimeout(mobileSessionApiUrl('response', payload), {
-          method: 'GET',
-          cache: 'no-store'
+        const topicUrl = `https://ntfy.sh/clickers-session-${encodeURIComponent(mobileSessionId)}`;
+        const cloudPayload = {
+          type: 'response',
+          cardId: cardId,
+          answer: answer,
+          timestamp: now
+        };
+        const res = await fetchWithTimeout(topicUrl, {
+          method: 'POST',
+          body: JSON.stringify(cloudPayload)
         });
-        if (!res.ok) throw new Error('server rejected fallback response');
+        if (!res.ok) throw new Error('cloud relay rejected response');
         markMobileResponseSynced(cardId, answer);
+        setMobileStatus(isCloudMode ? 'Synced (Cloud)' : 'Synced via Cloud');
       } catch (err) {
-        console.error('Mobile response sync failed:', { postError, fallbackError: err });
+        console.error('Mobile response cloud sync failed:', err);
         setMobileStatus('Cannot reach teacher screen');
       }
     }
@@ -3680,10 +4011,12 @@
             <div style="font-size: 64px; color: var(--primary); animation: pulse 2s infinite;"><i data-lucide="monitor-play" style="width:72px;height:72px;"></i></div>
             <div style="font-size: 28px; font-weight: 600;">Welcome to Clickers!</div>
             <div style="font-size: 16px; color: var(--text-muted); max-width: 420px; line-height: 1.6; text-align: center;">
-              Please select a class and a question on the teacher dashboard, then click "Start Session" to begin.
+              Please select the active cards count and a question on the teacher dashboard, then click "Start Session" to begin.
             </div>
           </div>
         `;
+        const projImgContainer = document.getElementById('proj-question-image-container');
+        if (projImgContainer) projImgContainer.style.display = 'none';
         projChart.classList.remove('active');
         projOptions.style.display = 'none';
         if (rosterPane) rosterPane.style.display = 'none';
@@ -3705,7 +4038,27 @@
       // Update question text
       document.getElementById('proj-question-text').innerText = questionData.text;
 
+      // Update question image
+      const projImgContainer = document.getElementById('proj-question-image-container');
+      const projImg = document.getElementById('proj-question-image');
+      if (projImgContainer && projImg) {
+        if (questionData.image) {
+          projImg.src = questionData.image;
+          projImgContainer.style.display = 'block';
+        } else {
+          projImg.src = '';
+          projImgContainer.style.display = 'none';
+        }
+      }
+
       // Update Multiple Choice Text Options
+      const isQuickPoll = (questionData.id === 'q_quick');
+      if (isQuickPoll) {
+        projOptions.classList.add('quick-poll');
+      } else {
+        projOptions.classList.remove('quick-poll');
+      }
+
       ['A', 'B', 'C', 'D'].forEach(letter => {
         document.getElementById(`proj-opt-text-${letter}`).innerText = questionData.options[letter];
         
@@ -3812,6 +4165,19 @@
     if (isMobileScannerWindow) {
       initMobileScanner();
     } else if (!isProjectorWindow) {
+      // Initialize Hosted URL Settings for local file sync
+      const hostedInput = document.getElementById('input-hosted-url');
+      const hostedContainer = document.getElementById('hosted-url-container');
+      if (hostedContainer) {
+        hostedContainer.style.display = window.location.protocol === 'file:' ? 'block' : 'none';
+      }
+      if (hostedInput) {
+        hostedInput.value = localStorage.getItem('clickers_hosted_url') || '';
+        hostedInput.addEventListener('input', (e) => {
+          localStorage.setItem('clickers_hosted_url', e.target.value.trim());
+          renderRemoteScannerInvite();
+        });
+      }
       initLiveSetup();
     }
   </script>
