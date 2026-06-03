@@ -1813,14 +1813,11 @@
                 <input type="text" class="form-input" id="quick-question-input" placeholder="e.g. Do you agree with the statement?">
               </div>
               <div class="form-group">
-                <label for="quick-card-count">Total Cards in Use</label>
-                <select class="form-select" id="quick-card-count">
-                  <option value="10">10 Cards (IDs 1-10)</option>
-                  <option value="20">20 Cards (IDs 1-20)</option>
-                  <option value="30" selected>30 Cards (IDs 1-30)</option>
-                  <option value="40">40 Cards (IDs 1-40)</option>
-                  <option value="50">50 Cards (IDs 1-50)</option>
-                </select>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label for="quick-card-count-input" style="font-weight: 500;">Active Cards Count</label>
+                  <span id="display-quick-card-count" style="font-weight: 700; color: var(--primary);">30 Cards</span>
+                </div>
+                <input type="range" id="quick-card-count-input" min="1" max="50" value="30" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
               </div>
             </div>
             <button class="btn btn-primary btn-emerald" id="btn-start-quick-session">
@@ -1853,6 +1850,17 @@
               <!-- Active Question Image Display -->
               <div id="active-question-image-container" style="display: none; text-align: center; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.15);">
                 <img id="active-question-image" src="" style="max-height: 160px; max-width: 100%; border-radius: 8px; object-fit: contain; border: 1px solid var(--card-border);">
+              </div>
+
+              <!-- Projector Image Resizer Controls (syncs with projector screen) -->
+              <div id="active-question-image-controls" style="display: none; padding: 8px 15px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.1); justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="zoom-in" style="width:14px;height:14px;"></i> Projector Image Size
+                </span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="range" id="session-proj-image-size" min="200" max="800" value="450" style="width: 100px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none; cursor: pointer;">
+                  <span id="session-proj-image-size-val" style="font-size: 11px; color: var(--text-muted); min-width: 35px;">450px</span>
+                </div>
               </div>
 
               <!-- Camera Screen wrapper -->
@@ -2085,8 +2093,15 @@
       <div class="proj-question-card" id="proj-main-card">
         <div class="proj-question-text" id="proj-question-text">Loading question...</div>
         
-        <div id="proj-question-image-container" style="display: none; text-align: center; margin-top: 20px; margin-bottom: 10px;">
-          <img id="proj-question-image" src="" style="max-height: 240px; max-width: 100%; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.05); padding: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <div id="proj-question-image-container" style="display: none; text-align: center; margin-top: 20px; margin-bottom: 10px; position: relative;">
+          <img id="proj-question-image" src="" style="max-height: 450px; max-width: 100%; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.05); padding: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: max-height 0.2s ease;">
+          <div class="image-resizer-control no-print" style="margin-top: 8px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="zoom-in" style="width:14px;height:14px;"></i> Size:
+            </span>
+            <input type="range" id="proj-image-size-slider" min="200" max="800" value="450" style="width: 120px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); outline: none; cursor: pointer;">
+            <span id="proj-image-size-display" style="font-size: 12px; color: var(--text-muted); min-width: 40px;">450px</span>
+          </div>
         </div>
         
         <!-- Answers Reveal Screen (hidden initially) -->
@@ -2383,8 +2398,8 @@
       document.getElementById('projector-view').style.display = 'block';
       
       // Expose a globally accessible function for the opener window to push updates
-      window.updateState = function(sessionData, questionData, classData, showResults, privateMode) {
-        renderProjectorLayout(sessionData, questionData, classData, showResults, privateMode);
+      window.updateState = function(sessionData, questionData, classData, showResults, privateMode, imgSize) {
+        renderProjectorLayout(sessionData, questionData, classData, showResults, privateMode, imgSize);
       };
 
       // Call render once on load to show the initial "Waiting for Session" screen and hide default raw HTML option cards
@@ -2398,6 +2413,29 @@
       } catch (e) {
         console.error('Failed to register projector window with opener:', e);
       }
+
+      // Listen to local projector resizer slider edits
+      setTimeout(() => {
+        const slider = document.getElementById('proj-image-size-slider');
+        const display = document.getElementById('proj-image-size-display');
+        const projImg = document.getElementById('proj-question-image');
+        if (slider) {
+          slider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            if (projImg) projImg.style.maxHeight = `${val}px`;
+            if (display) display.innerText = `${val}px`;
+            // Sync back to opener teacher window if available
+            try {
+              if (window.opener && !window.opener.closed) {
+                const teacherSlider = window.opener.document.getElementById('session-proj-image-size');
+                const teacherDisplay = window.opener.document.getElementById('session-proj-image-size-val');
+                if (teacherSlider) teacherSlider.value = val;
+                if (teacherDisplay) teacherDisplay.innerText = `${val}px`;
+              }
+            } catch (err) {}
+          });
+        }
+      }, 100);
     } else {
       // Normal application view
       safeCreateIcons();
@@ -2420,12 +2458,15 @@
     function pushStateToProjector() {
       try {
         if (activeProjectorWin && !activeProjectorWin.closed) {
+          const imgSizeEl = document.getElementById('session-proj-image-size');
+          const imgSize = imgSizeEl ? parseInt(imgSizeEl.value) : 450;
           activeProjectorWin.updateState(
             activeSession,
             currentQuestion,
             currentClass,
             revealResults,
-            privateMode
+            privateMode,
+            imgSize
           );
         } else {
           document.getElementById('projector-status').innerHTML = `
@@ -2494,6 +2535,24 @@
       });
     }
 
+    const sliderQuickCount = document.getElementById('quick-card-count-input');
+    const displayQuickCount = document.getElementById('display-quick-card-count');
+    if (sliderQuickCount && displayQuickCount) {
+      sliderQuickCount.addEventListener('input', (e) => {
+        displayQuickCount.innerText = `${e.target.value} Cards`;
+      });
+    }
+
+    const sliderProjImageSize = document.getElementById('session-proj-image-size');
+    const displayProjImageSize = document.getElementById('session-proj-image-size-val');
+    if (sliderProjImageSize && displayProjImageSize) {
+      sliderProjImageSize.addEventListener('input', (e) => {
+        const val = e.target.value;
+        displayProjImageSize.innerText = `${val}px`;
+        pushStateToProjector();
+      });
+    }
+
     // ----------------------------------------------------
     // MANAGING QUESTIONS BANK & MEDIA SUPPORT
     // ----------------------------------------------------
@@ -2530,7 +2589,7 @@
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const maxDim = 400; // Limit dimensions to 400px to fit LocalStorage limits
+          const maxDim = 1000; // Limit dimensions to 1000px to make it larger and clearer on projector screen
           let width = img.width;
           let height = img.height;
 
@@ -3261,7 +3320,7 @@
     // Start Quick Poll Session listener
     document.getElementById('btn-start-quick-session').addEventListener('click', () => {
       const questionText = document.getElementById('quick-question-input').value.trim() || 'On-the-Fly Quick Poll';
-      const cardCount = parseInt(document.getElementById('quick-card-count').value) || 30;
+      const cardCount = parseInt(document.getElementById('quick-card-count-input').value) || 30;
 
       // Build virtual class roster on the fly (not saved in standard classes list)
       currentClass = {
@@ -3286,12 +3345,14 @@
       document.getElementById('active-question-display').innerText = currentQuestion.text;
       document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
 
-      // Hide active question image container since Quick Poll has no image
+      // Hide active question image container and controls since Quick Poll has no image
       const imgContainer = document.getElementById('active-question-image-container');
       const imgEl = document.getElementById('active-question-image');
+      const imgControls = document.getElementById('active-question-image-controls');
       if (imgContainer && imgEl) {
         imgEl.src = '';
         imgContainer.style.display = 'none';
+        if (imgControls) imgControls.style.display = 'none';
       }
 
       activeSession = { responses: {} };
@@ -3340,16 +3401,19 @@
       document.getElementById('active-question-display').innerText = currentQuestion.text;
       document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
 
-      // Update Active Question Image
+      // Update Active Question Image & Controls
       const imgContainer = document.getElementById('active-question-image-container');
       const imgEl = document.getElementById('active-question-image');
+      const imgControls = document.getElementById('active-question-image-controls');
       if (imgContainer && imgEl) {
         if (currentQuestion.image) {
           imgEl.src = currentQuestion.image;
           imgContainer.style.display = 'block';
+          if (imgControls) imgControls.style.display = 'flex';
         } else {
           imgEl.src = '';
           imgContainer.style.display = 'none';
+          if (imgControls) imgControls.style.display = 'none';
         }
       }
 
@@ -3993,7 +4057,7 @@
     // ----------------------------------------------------
     // PROJECTOR VIEW RENDER PIPE (dual-screen screen state)
     // ----------------------------------------------------
-    function renderProjectorLayout(sessionData, questionData, classData, showResults, privateVal) {
+    function renderProjectorLayout(sessionData, questionData, classData, showResults, privateVal, imgSize) {
       if (!isProjectorWindow) return;
 
       const projGrid = document.getElementById('proj-student-grid');
@@ -4038,13 +4102,26 @@
       // Update question text
       document.getElementById('proj-question-text').innerText = questionData.text;
 
-      // Update question image
+      // Update question image & height
       const projImgContainer = document.getElementById('proj-question-image-container');
       const projImg = document.getElementById('proj-question-image');
       if (projImgContainer && projImg) {
         if (questionData.image) {
           projImg.src = questionData.image;
           projImgContainer.style.display = 'block';
+          
+          // Apply size if provided
+          const size = imgSize || 450;
+          projImg.style.maxHeight = `${size}px`;
+          
+          const slider = document.getElementById('proj-image-size-slider');
+          const display = document.getElementById('proj-image-size-display');
+          if (slider) {
+            slider.value = size;
+          }
+          if (display) {
+            display.innerText = `${size}px`;
+          }
         } else {
           projImg.src = '';
           projImgContainer.style.display = 'none';
