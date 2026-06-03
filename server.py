@@ -6,10 +6,18 @@ import os
 import socket
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 
 SESSIONS = {}
+
+
+def _session_for(session_id):
+    return SESSIONS.setdefault(session_id, {
+        "responses": {},
+        "createdAt": int(time.time() * 1000),
+        "updatedAt": int(time.time() * 1000),
+    })
 
 
 def _json_response(handler, status, payload):
@@ -30,6 +38,33 @@ def _request_json(handler):
         return {}
     raw = handler.rfile.read(length)
     return json.loads(raw.decode("utf-8"))
+
+
+def _data_value(data, key, default=None):
+    value = data.get(key, default)
+    if isinstance(value, list):
+        return value[-1] if value else default
+    return value
+
+
+def _record_response(session, data):
+    card_id = str(int(_data_value(data, "cardId")))
+    answer = str(_data_value(data, "answer", "")).upper()
+    if answer not in {"A", "B", "C", "D"}:
+        raise ValueError("answer must be A, B, C, or D")
+
+    timestamp_value = _data_value(data, "timestamp") or int(time.time() * 1000)
+    timestamp = int(float(timestamp_value))
+    session["responses"][card_id] = {
+        "answer": answer,
+        "timestamp": timestamp,
+    }
+    session["updatedAt"] = int(time.time() * 1000)
+    return {
+        "cardId": card_id,
+        "answer": answer,
+        "timestamp": timestamp,
+    }
 
 
 def _lan_ip():
@@ -66,12 +101,24 @@ class ClickersHandler(SimpleHTTPRequestHandler):
             return
 
         if path.startswith("/api/session/"):
-            session_id = path.split("/")[3] if len(path.split("/")) > 3 else ""
-            session = SESSIONS.setdefault(session_id, {
-                "responses": {},
-                "createdAt": int(time.time() * 1000),
-                "updatedAt": int(time.time() * 1000),
-            })
+            parts = path.strip("/").split("/")
+            session_id = parts[2] if len(parts) >= 3 else ""
+            action = parts[3] if len(parts) >= 4 else ""
+            session = _session_for(session_id)
+
+            if action == "response":
+                try:
+                    data = {key: values[-1] for key, values in parse_qs(parsed.query).items()}
+                    recorded = _record_response(session, data)
+                    _json_response(self, 200, {"ok": True, "sessionId": session_id, "response": recorded})
+                except Exception as exc:
+                    _json_response(self, 400, {"ok": False, "error": str(exc)})
+                return
+
+            if action:
+                _json_response(self, 404, {"ok": False, "error": "Not found"})
+                return
+
             _json_response(self, 200, {
                 "ok": True,
                 "sessionId": session_id,
@@ -90,11 +137,7 @@ class ClickersHandler(SimpleHTTPRequestHandler):
             parts = path.strip("/").split("/")
             session_id = parts[2] if len(parts) >= 3 else ""
             action = parts[3] if len(parts) >= 4 else ""
-            session = SESSIONS.setdefault(session_id, {
-                "responses": {},
-                "createdAt": int(time.time() * 1000),
-                "updatedAt": int(time.time() * 1000),
-            })
+            session = _session_for(session_id)
 
             if action == "reset":
                 session["responses"] = {}
@@ -105,17 +148,8 @@ class ClickersHandler(SimpleHTTPRequestHandler):
             if action == "response":
                 try:
                     data = _request_json(self)
-                    card_id = str(int(data.get("cardId")))
-                    answer = str(data.get("answer", "")).upper()
-                    if answer not in {"A", "B", "C", "D"}:
-                        raise ValueError("answer must be A, B, C, or D")
-                    timestamp = int(data.get("timestamp") or int(time.time() * 1000))
-                    session["responses"][card_id] = {
-                        "answer": answer,
-                        "timestamp": timestamp,
-                    }
-                    session["updatedAt"] = int(time.time() * 1000)
-                    _json_response(self, 200, {"ok": True, "sessionId": session_id})
+                    recorded = _record_response(session, data)
+                    _json_response(self, 200, {"ok": True, "sessionId": session_id, "response": recorded})
                 except Exception as exc:
                     _json_response(self, 400, {"ok": False, "error": str(exc)})
                 return
