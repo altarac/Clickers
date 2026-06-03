@@ -1968,9 +1968,18 @@
         <div class="glass-card">
           <div class="card-header">
             <h3 class="card-title">Question Bank</h3>
-            <button class="btn btn-primary" id="btn-add-question">
-              <i data-lucide="plus-circle"></i> Add Question
-            </button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn btn-secondary" id="btn-save-questions">
+                <i data-lucide="download"></i> Save Set
+              </button>
+              <button class="btn btn-secondary" id="btn-load-questions-trigger">
+                <i data-lucide="upload"></i> Load Set
+              </button>
+              <button class="btn btn-primary" id="btn-add-question">
+                <i data-lucide="plus-circle"></i> Add Question
+              </button>
+              <input type="file" id="input-load-questions" accept=".json" style="display: none;">
+            </div>
           </div>
           <div class="list-wrapper" id="questions-list-container">
             <!-- Populated via JS -->
