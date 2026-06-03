@@ -1174,40 +1174,66 @@
 
     /* Remote iPhone scanner panel */
     .remote-scan-panel {
-      margin-top: 16px;
+      margin: auto 14px 12px;
       border: 1px solid var(--card-border);
       border-radius: 12px;
       background: #f8fafc;
-      padding: 14px;
+      padding: 12px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      text-align: left;
+      flex-shrink: 0;
+    }
+    .sidebar-remote-scan {
+      width: calc(100% - 28px);
     }
     .remote-scan-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
     }
     .remote-scan-title {
       display: flex;
       align-items: center;
       gap: 8px;
       font-weight: 700;
+      font-size: 13px;
       color: var(--text-main);
     }
     .remote-scan-status {
+      display: block;
+      margin-top: 3px;
       font-size: 12px;
       color: var(--text-muted);
-      white-space: nowrap;
+    }
+    .remote-scan-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: #ffffff;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition: all 0.2s ease;
+    }
+    .remote-scan-toggle:hover {
+      border-color: var(--primary);
+      color: var(--primary);
     }
     .remote-scan-body {
       display: grid;
-      grid-template-columns: 112px 1fr;
-      gap: 12px;
+      grid-template-columns: 96px 1fr;
+      gap: 10px;
       align-items: center;
     }
     .remote-scan-qr-wrap {
-      width: 112px;
-      height: 112px;
+      width: 96px;
+      height: 96px;
       border-radius: 10px;
       background: #ffffff;
       border: 1px solid var(--card-border);
@@ -1216,8 +1242,8 @@
       overflow: hidden;
     }
     #remote-scan-qr {
-      width: 104px;
-      height: 104px;
+      width: 88px;
+      height: 88px;
     }
     .remote-scan-link {
       color: var(--primary);
@@ -1230,6 +1256,15 @@
       font-size: 12px;
       line-height: 1.4;
       color: var(--text-muted);
+    }
+    .remote-scan-panel.qr-hidden {
+      padding: 10px 12px;
+    }
+    .remote-scan-panel.qr-hidden .remote-scan-header {
+      margin-bottom: 0;
+    }
+    .remote-scan-panel.qr-hidden .remote-scan-body {
+      display: none;
     }
 
     /* Mobile scanner route */
@@ -1377,6 +1412,9 @@
         padding: 10px 12px;
       }
       .sidebar-footer {
+        display: none;
+      }
+      .sidebar-remote-scan {
         display: none;
       }
       .main-layout {
@@ -1582,6 +1620,29 @@
         <button><i data-lucide="help-circle"></i>Question Bank</button>
       </li>
     </ul>
+    <div class="remote-scan-panel sidebar-remote-scan" id="remote-scan-panel">
+      <div class="remote-scan-header">
+        <div>
+          <div class="remote-scan-title">
+            <i data-lucide="smartphone" style="width:16px;height:16px;"></i>
+            iPhone scanner
+          </div>
+          <div class="remote-scan-status" id="remote-scan-status">Preparing link</div>
+        </div>
+        <button class="remote-scan-toggle" id="btn-toggle-qr" type="button" title="Hide phone QR" aria-label="Hide phone QR" aria-pressed="false">
+          <i data-lucide="eye-off" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+      <div class="remote-scan-body">
+        <div class="remote-scan-qr-wrap">
+          <canvas id="remote-scan-qr" width="112" height="112"></canvas>
+        </div>
+        <div>
+          <a class="remote-scan-link" id="remote-scan-link" href="#" target="_blank" rel="noopener">Mobile scanner link</a>
+          <div class="remote-scan-help" id="remote-scan-help">Start the Clickers server, scan this code, then use the phone camera for the class.</div>
+        </div>
+      </div>
+    </div>
     <div class="sidebar-footer">
       Classroom Scanner v1.0
     </div>
@@ -1715,25 +1776,6 @@
 
               <div class="proj-progress-bar-bg">
                 <div class="proj-progress-bar-fill" id="session-progress-bar-fill" style="width: 0%;"></div>
-              </div>
-
-              <div class="remote-scan-panel" id="remote-scan-panel">
-                <div class="remote-scan-header">
-                  <div class="remote-scan-title">
-                    <i data-lucide="smartphone" style="width:16px;height:16px;"></i>
-                    iPhone scanner
-                  </div>
-                  <div class="remote-scan-status" id="remote-scan-status">Preparing link</div>
-                </div>
-                <div class="remote-scan-body">
-                  <div class="remote-scan-qr-wrap">
-                    <canvas id="remote-scan-qr" width="112" height="112"></canvas>
-                  </div>
-                  <div>
-                    <a class="remote-scan-link" id="remote-scan-link" href="#" target="_blank" rel="noopener">Mobile scanner link</a>
-                    <div class="remote-scan-help" id="remote-scan-help">Start the Clickers server, scan this code, then use the phone camera for the class.</div>
-                  </div>
-                </div>
               </div>
 
               <!-- Live Chart in Sidebar (optional representation) -->
@@ -2236,12 +2278,14 @@
     let isProjectorWindow = false;
     let isMobileScannerWindow = false;
     let mobileSessionId = '';
+    let mobileTeacherOrigin = '';
     let projectorStateUpdateHandler = null;
     const mobileRouteMatch = window.location.hash.match(/^#mobile-scan\/([A-Za-z0-9_-]+)/);
 
     if (mobileRouteMatch) {
       isMobileScannerWindow = true;
       mobileSessionId = mobileRouteMatch[1];
+      mobileTeacherOrigin = (new URLSearchParams(window.location.search).get('teacherOrigin') || window.location.origin).replace(/\/+$/, '');
       document.body.classList.add('mobile-scanner-mode');
       document.getElementById('sidebar-nav').style.display = 'none';
       document.getElementById('main-content').style.display = 'none';
@@ -2703,6 +2747,25 @@
     let remoteSessionId = '';
     let remotePollTimer = null;
     let remoteServerAvailable = false;
+    let remoteQrHidden = false;
+
+    function setQrPanelHidden(hidden) {
+      remoteQrHidden = hidden;
+      const panel = document.getElementById('remote-scan-panel');
+      const button = document.getElementById('btn-toggle-qr');
+      if (panel) panel.classList.toggle('qr-hidden', hidden);
+      if (button) {
+        button.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+        button.setAttribute('aria-label', hidden ? 'Show phone QR' : 'Hide phone QR');
+        button.title = hidden ? 'Show phone QR' : 'Hide phone QR';
+        button.innerHTML = `<i data-lucide="${hidden ? 'qr-code' : 'eye-off'}" style="width:16px;height:16px;"></i>`;
+        safeCreateIcons();
+      }
+    }
+
+    document.getElementById('btn-toggle-qr')?.addEventListener('click', () => {
+      setQrPanelHidden(!remoteQrHidden);
+    });
 
     // Camera pipeline elements
     const videoElement = document.getElementById('webcam');
@@ -2746,21 +2809,39 @@
       }
     }
 
-    function mobileScannerPath(sessionId) {
-      return `${window.location.pathname}#mobile-scan/${encodeURIComponent(sessionId)}`;
+    function normalizeRemoteOrigin(origin) {
+      try {
+        return new URL(origin).origin.replace(/\/+$/, '');
+      } catch (err) {
+        return window.location.origin && window.location.origin !== 'null'
+          ? window.location.origin.replace(/\/+$/, '')
+          : '';
+      }
+    }
+
+    function mobileScannerUrl(sessionId, origin) {
+      const teacherOrigin = normalizeRemoteOrigin(origin);
+      if (!teacherOrigin) {
+        return `${window.location.pathname}#mobile-scan/${encodeURIComponent(sessionId)}`;
+      }
+      const url = new URL(window.location.pathname || '/index.html', teacherOrigin);
+      url.searchParams.set('teacherOrigin', teacherOrigin);
+      url.hash = `mobile-scan/${encodeURIComponent(sessionId)}`;
+      return url.toString();
     }
 
     async function renderRemoteScannerInvite() {
       if (!remoteSessionId) return;
       const origin = await getRemoteScannerOrigin();
-      const mobileUrl = `${origin}${mobileScannerPath(remoteSessionId)}`;
+      const mobileUrl = mobileScannerUrl(remoteSessionId, origin);
       const link = document.getElementById('remote-scan-link');
       const help = document.getElementById('remote-scan-help');
       const canvas = document.getElementById('remote-scan-qr');
 
       if (link) {
         link.href = mobileUrl;
-        link.innerText = mobileUrl;
+        link.innerText = 'Open phone scanner';
+        link.title = mobileUrl;
       }
       if (help) {
         help.innerText = remoteServerAvailable
@@ -2853,6 +2934,7 @@
     async function beginRemoteSession() {
       stopRemotePolling();
       remoteSessionId = createRemoteSessionId();
+      setQrPanelHidden(false);
       setRemoteStatus('Preparing link');
       await resetRemoteSessionOnServer();
       await renderRemoteScannerInvite();
@@ -3281,9 +3363,6 @@
       document.getElementById('mobile-photo-input').addEventListener('change', processMobilePhoto);
       updateMobileCount();
 
-      if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-        setMobileStatus('Camera may require HTTPS on iPhone');
-      }
       safeCreateIcons();
     }
 
@@ -3351,6 +3430,34 @@
       setMobileStatus(mobileSessionId ? 'Paused' : 'Missing session');
     }
 
+    function mobileSessionApiUrl(action = '', params = {}) {
+      const teacherOrigin = normalizeRemoteOrigin(mobileTeacherOrigin || window.location.origin);
+      const path = `/api/session/${encodeURIComponent(mobileSessionId)}${action ? `/${action}` : ''}`;
+      const url = new URL(path, teacherOrigin || window.location.href);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.set(key, String(value));
+        }
+      });
+      return url.toString();
+    }
+
+    function fetchWithTimeout(url, options = {}, timeoutMs = 3000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+        clearTimeout(timer);
+      });
+    }
+
+    function markMobileResponseSynced(cardId, answer) {
+      mobileSeenCards.add(String(cardId));
+      updateMobileCount();
+      setMobileStatus('Linked to teacher screen');
+      setMobileLatest(`Card #${cardId}: ${answer}`);
+      playScanBeep(answer === 'A' ? 523.25 : answer === 'B' ? 587.33 : answer === 'C' ? 659.25 : 698.46);
+    }
+
     async function sendMobileResponse(cardId, answer) {
       const now = Date.now();
       const previous = mobileLastSent[cardId];
@@ -3358,20 +3465,31 @@
       if (previous && previous.answer !== answer && now - previous.timestamp < 650) return;
 
       mobileLastSent[cardId] = { answer, timestamp: now };
+      const payload = { cardId, answer, timestamp: now };
+      let postError = null;
       try {
-        const res = await fetch(`/api/session/${encodeURIComponent(mobileSessionId)}/response`, {
+        const res = await fetchWithTimeout(mobileSessionApiUrl('response'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cardId, answer, timestamp: now })
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          cache: 'no-store',
+          body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('server rejected response');
-        mobileSeenCards.add(String(cardId));
-        updateMobileCount();
-        setMobileStatus('Linked to teacher screen');
-        setMobileLatest(`Card #${cardId}: ${answer}`);
-        playScanBeep(answer === 'A' ? 523.25 : answer === 'B' ? 587.33 : answer === 'C' ? 659.25 : 698.46);
+        markMobileResponseSynced(cardId, answer);
+        return;
       } catch (err) {
-        console.error('Mobile response sync failed:', err);
+        postError = err;
+      }
+
+      try {
+        const res = await fetchWithTimeout(mobileSessionApiUrl('response', payload), {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        if (!res.ok) throw new Error('server rejected fallback response');
+        markMobileResponseSynced(cardId, answer);
+      } catch (err) {
+        console.error('Mobile response sync failed:', { postError, fallbackError: err });
         setMobileStatus('Cannot reach teacher screen');
       }
     }
