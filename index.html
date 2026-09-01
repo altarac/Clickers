@@ -129,7 +129,7 @@
       align-items: center;
       justify-content: center;
       color: white;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      box-shadow: 0 8px 20px -10px rgba(15, 23, 42, 0.5);
     }
 
     .brand-name {
@@ -575,7 +575,7 @@
       border: 1px solid var(--card-border);
       border-radius: 20px;
       overflow: hidden;
-      animation: modalSlide 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
     }
 
@@ -840,7 +840,8 @@
       color: var(--text-main);
       opacity: 0;
       transform: translateY(10px);
-      transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s;
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s,
+                  transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
     }
 
     .chart-bar-wrapper.animated .chart-bar-val {
@@ -1338,24 +1339,31 @@
     }
     .remote-scan-body {
       display: grid;
-      grid-template-columns: 96px 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
       align-items: center;
+      justify-items: center;
+      text-align: center;
     }
     .remote-scan-qr-wrap {
-      width: 96px;
-      height: 96px;
+      width: auto;
+      height: auto;
+      min-width: 0;
       border-radius: 10px;
       background: #ffffff;
       border: 1px solid var(--card-border);
+      padding: 6px;
       display: grid;
       place-items: center;
-      overflow: hidden;
+      overflow: visible;
     }
+    .remote-scan-qr-wrap.is-empty { display: none; }
+    /* Size is set inline by the renderer so the modules stay whole pixels. */
     #remote-scan-qr {
-      width: 88px;
-      height: 88px;
+      max-width: 100%;
+      height: auto;
     }
+    .remote-scan-body > div:last-child { width: 100%; text-align: left; }
     .remote-scan-link {
       color: var(--primary);
       font-size: 12px;
@@ -1652,35 +1660,71 @@
       }
     }
 
-    /* Print formatting details override */
+    /* ============================================================
+       PRINT GEOMETRY
+       Cards are laid out in real millimetres so the marker comes off
+       the printer at a known physical size. Landscape gives each fold
+       half a wide, square-ish area, which is what the marker needs.
+       190mm tall fits BOTH Letter-landscape (199.9mm usable) and
+       A4-landscape (194mm usable) at an 8mm margin.
+       ============================================================ */
+    @page {
+      size: landscape;
+      margin: 8mm;
+    }
+
     @media print {
-      body {
-        background-color: white !important;
-        color: black !important;
+      html, body {
+        background-color: #fff !important;
+        color: #000 !important;
         margin: 0 !important;
         padding: 0 !important;
         display: block !important;
+        width: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
-      .sidebar, .header-bar, .app-container, .modal-backdrop, .no-print {
+      .sidebar, .header-bar, .app-container, .modal-backdrop, .no-print,
+      #projector-view, #mobile-scanner-view {
         display: none !important;
       }
       #print-section {
         display: block !important;
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
+        position: static !important;
+        width: 100% !important;
+      }
+      .print-sheet {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        height: 190mm !important;
+        box-sizing: border-box !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        break-after: page !important;
+        page-break-after: always !important;
+        gap: 4mm !important;
+      }
+      /* No trailing blank page. Height is kept so the card cannot grow past
+         the sheet and spill onto one. */
+      .print-sheet:last-child {
+        break-after: auto !important;
+        page-break-after: auto !important;
       }
       .print-card {
-        page-break-after: always;
         display: flex !important;
         width: 100% !important;
-        height: 100vh !important;
-        border: 2px solid #000 !important;
+        flex: 0 0 auto !important;
+        min-height: 0 !important;
+        border: 1.5pt solid #000 !important;
         box-sizing: border-box !important;
         position: relative !important;
-        background-color: white !important;
-        color: black !important;
+        background-color: #fff !important;
+        color: #000 !important;
+        overflow: hidden !important;
       }
       .print-card::after {
         content: "";
@@ -1688,9 +1732,12 @@
         left: 50%;
         top: 0;
         bottom: 0;
-        border-left: 2px dashed #000 !important;
+        border-left: 1pt dashed #000 !important;
         z-index: 100;
       }
+      .print-sheet.per-sheet-1 .print-card { height: 190mm !important; }
+      .print-sheet.per-sheet-2 .print-card { height: 93mm !important; }
+
       .front-side, .back-side {
         width: 50% !important;
         height: 100% !important;
@@ -1700,14 +1747,1170 @@
         justify-content: center !important;
         position: relative !important;
         box-sizing: border-box !important;
-        padding: 40px !important;
-        background-color: white !important;
-        color: black !important;
+        padding: 9mm !important;
+        background-color: #fff !important;
+        color: #000 !important;
+        overflow: hidden !important;
       }
+      /* Two-up has far less vertical room; give it back to the marker. */
+      .print-sheet.per-sheet-2 .front-side,
+      .print-sheet.per-sheet-2 .back-side { padding: 5mm 6mm !important; }
+      .print-sheet.per-sheet-2 .print-label { font-size: 12pt !important; }
+      .print-sheet.per-sheet-2 .back-student-name { font-size: 18pt !important; }
       .back-side {
-        border-left: 1px solid #ccc !important;
+        border-left: none !important;
+      }
+      /* Marker is emitted at an explicit mm size by the print engine; never
+         let a screen rule shrink it. */
+      .print-card .marker-container {
+        width: auto !important;
+        height: auto !important;
+        flex: 0 0 auto !important;
+      }
+      .print-card .print-label {
+        font-size: 16pt !important;
+        color: #000 !important;
+      }
+      .print-sheet.per-sheet-2 .fold-hint { display: none !important; }
+      .print-card .fold-hint {
+        position: absolute;
+        left: 50%;
+        bottom: 2mm;
+        transform: translateX(-50%);
+        font-size: 6pt !important;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #444 !important;
+        z-index: 101;
+      }
+      .print-card .marker-caption {
+        font-size: 7pt !important;
+        color: #555 !important;
+        margin-top: 2mm !important;
       }
     }
+    /* ============================================================
+       SHARED UI PRIMITIVES (added)
+       ============================================================ */
+    .seg-control {
+      display: flex;
+      gap: 6px;
+      background: rgba(0,0,0,0.18);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .seg-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background-color .15s ease, color .15s ease;
+    }
+    .seg-btn:hover { color: var(--text-main); }
+    .seg-btn.active {
+      background: var(--primary);
+      color: #fff;
+    }
+    .hint-text {
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+    .callout {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 13px;
+      line-height: 1.55;
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid;
+    }
+    .callout-amber {
+      background: rgba(245, 158, 11, 0.10);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: var(--text-main);
+    }
+    .callout-indigo {
+      background: rgba(99, 102, 241, 0.10);
+      border-color: rgba(99, 102, 241, 0.35);
+      color: var(--text-main);
+    }
+    .callout-rose {
+      background: rgba(244, 63, 94, 0.10);
+      border-color: rgba(244, 63, 94, 0.35);
+      color: var(--text-main);
+    }
+
+    /* ============================================================
+       LANDING / HOW IT WORKS
+       ============================================================ */
+    .home-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+      gap: 28px;
+      align-items: center;
+      margin-bottom: 26px;
+    }
+    .home-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .home-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 34px;
+      line-height: 1.15;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-main);
+    }
+    .home-lede {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--text-muted);
+      max-width: 56ch;
+      margin-bottom: 20px;
+    }
+    .home-cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .home-hero-art {
+      background: rgba(0,0,0,0.18);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .home-hero-card {
+      position: relative;
+      width: 190px;
+      height: 190px;
+      background: #fff;
+      border-radius: 10px;
+      border: 2px solid #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform .6s cubic-bezier(.6,.05,.3,1);
+    }
+    .home-hero-card svg { width: 66%; height: auto; }
+    .home-hero-card .hero-letter {
+      position: absolute;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 19px;
+      color: #0f172a;
+    }
+    .home-hero-card .hl-t { top: 6px; left: 50%; transform: translateX(-50%); }
+    .home-hero-card .hl-r { right: 6px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+    .home-hero-card .hl-b { bottom: 6px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+    .home-hero-card .hl-l { left: 6px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+    .home-hero-caption {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.5;
+      max-width: 30ch;
+    }
+    .home-hero-caption strong { color: var(--primary); }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+      gap: 16px;
+      margin-bottom: 26px;
+    }
+    .step-card {
+      background: var(--bg-slate);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .step-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: var(--primary);
+      opacity: .8;
+    }
+    .step-num {
+      width: 30px; height: 30px;
+      border-radius: 9px;
+      background: rgba(99,102,241,0.16);
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px;
+      font-family: 'Outfit', sans-serif;
+    }
+    .step-card h4 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .step-card p {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      flex-grow: 1;
+    }
+    .step-link {
+      background: none; border: none; padding: 0;
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      color: var(--primary); cursor: pointer;
+      display: inline-flex; align-items: center; gap: 5px;
+      align-self: flex-start;
+    }
+    .step-link:hover { text-decoration: underline; }
+
+    .home-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    .faq-item {
+      border-bottom: 1px solid var(--card-border);
+      padding: 13px 0;
+    }
+    .faq-item:last-child { border-bottom: none; }
+    .faq-q {
+      font-size: 14px;
+      font-weight: 650;
+      color: var(--text-main);
+      margin-bottom: 5px;
+    }
+    .faq-a {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 11px; }
+    .checklist li {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-size: 13.5px; line-height: 1.55; color: var(--text-muted);
+    }
+    .checklist li strong { color: var(--text-main); }
+    .checklist .tick {
+      flex-shrink: 0;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(16,185,129,0.15);
+      color: var(--accent-emerald);
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+
+    @media (max-width: 900px) {
+      .home-hero { grid-template-columns: 1fr; }
+      .home-hero-art { order: -1; }
+      .home-title { font-size: 27px; }
+    }
+
+    /* ============================================================
+       PRINT PREVIEW (screen side)
+       ============================================================ */
+    .preview-card-frame.per-sheet-1 {
+      width: min(820px, 100%);
+      height: auto;
+      aspect-ratio: 263 / 190;
+    }
+    .preview-card-frame.per-sheet-2 {
+      width: min(820px, 100%);
+      height: auto;
+      aspect-ratio: 263 / 93;
+    }
+    .preview-card-frame .marker-container {
+      width: 46%;
+      height: auto;
+      max-height: 74%;
+    }
+    .preview-card-frame .marker-container svg {
+      width: 100%;
+      height: auto;
+      max-height: 100%;
+    }
+    /* The ruler only means something at true print scale. */
+    .preview-card-frame .print-ruler,
+    .preview-card-frame .fold-hint { display: none; }
+    .marker-caption {
+      font-size: 11px;
+      color: #555;
+      margin-top: 8px;
+      text-align: center;
+      font-family: 'Inter', sans-serif;
+    }
+    .print-ruler {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1mm;
+      margin-top: 3mm;
+    }
+    .print-ruler-bar {
+      display: block;
+      width: 50mm;
+      height: 2.2mm;
+      border: 0.4mm solid #000;
+      border-top: none;
+      box-sizing: border-box;
+    }
+    .print-ruler-label {
+      font-size: 6.5pt;
+      color: #555;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: .04em;
+    }
+    /* Sheets are a print-only grouping wrapper. */
+    #print-section .print-sheet { display: block; }
+
+    /* ============================================================
+       PDF DECK IMPORT + PAGE EDITOR
+       ============================================================ */
+    .dropzone {
+      border: 2px dashed var(--card-border);
+      border-radius: 14px;
+      padding: 38px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s ease, background-color .15s ease;
+      background: rgba(0,0,0,0.12);
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(99,102,241,0.08);
+    }
+    .dropzone .dz-icon { color: var(--primary); margin-bottom: 12px; }
+    .dropzone h4 { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+    .dropzone p { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+
+    .pdf-progress {
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    .pdf-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width .2s ease;
+    }
+
+    .pdf-page-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+      max-height: 58vh;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .pdf-page-tile {
+      position: relative;
+      border: 2px solid var(--card-border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      cursor: pointer;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .pdf-page-tile:hover { transform: translateY(-2px); }
+    .pdf-page-tile.selected { border-color: var(--primary); }
+    .pdf-page-tile img { width: 100%; display: block; }
+    .pdf-page-tile .tile-bar {
+      position: absolute;
+      inset: auto 0 0 0;
+      background: rgba(15,23,42,.86);
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .pdf-page-tile .tile-check {
+      position: absolute;
+      top: 8px; right: 8px;
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: rgba(15,23,42,.72);
+      border: 1.5px solid rgba(255,255,255,.5);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+    }
+    .pdf-page-tile.selected .tile-check {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .pdf-page-tile .tile-badge {
+      position: absolute;
+      top: 8px; left: 8px;
+      background: var(--accent-emerald);
+      color: #05261b;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      padding: 3px 7px;
+      border-radius: 5px;
+      text-transform: uppercase;
+    }
+    .tile-edit-btn {
+      border: none;
+      background: rgba(255,255,255,.16);
+      color: #fff;
+      border-radius: 5px;
+      padding: 3px 7px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .tile-edit-btn:hover { background: var(--primary); }
+
+    /* --- Page editor modal --- */
+    .editor-modal .modal-content {
+      max-width: min(1180px, 96vw);
+      width: 100%;
+    }
+    .editor-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 288px;
+      gap: 18px;
+      align-items: start;
+    }
+    .editor-stage-wrap {
+      background: #10151f;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 320px;
+      overflow: visible;
+    }
+    /* The whole page has to stay on screen: you cannot drop a chip onto a
+       part of the page you cannot see. */
+    #editor-page-img {
+      max-height: 58vh;
+      width: auto;
+      max-width: 100%;
+    }
+    .editor-side {
+      max-height: 62vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    /* The stage is the coordinate space. Overlays are positioned in % of it,
+       so whatever size it renders at (editor, sidebar, projector) they land
+       in the same spot. */
+    .page-stage {
+      position: relative;
+      display: inline-block;
+      line-height: 0;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+      max-width: 100%;
+    }
+    .page-stage > img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .ov {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      line-height: 1.25;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+      text-align: center;
+      max-width: 92%;
+    }
+    .ov-option {
+      display: inline-flex;
+      align-items: center;
+      gap: .45em;
+      background: rgba(255,255,255,.96);
+      border: 0.14em solid #4f46e5;
+      color: #0f172a;
+      border-radius: .55em;
+      padding: .3em .7em;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      box-shadow: 0 .12em .4em rgba(15,23,42,.28);
+    }
+    .ov-option .ov-letter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5em; height: 1.5em;
+      border-radius: .35em;
+      background: #4f46e5;
+      color: #fff;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .ov-option.is-correct { border-color: #10b981; }
+    .ov-option.is-correct .ov-letter { background: #10b981; }
+    .ov-text {
+      background: rgba(255,255,255,.94);
+      border: 0.1em solid rgba(15,23,42,.22);
+      color: #0f172a;
+      border-radius: .4em;
+      padding: .35em .6em;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      box-shadow: 0 .1em .3em rgba(15,23,42,.2);
+    }
+    .ov-callout {
+      background: #fef3c7;
+      border: 0.1em solid #f59e0b;
+      color: #78350f;
+    }
+    /* Editor-only affordances */
+    .page-stage.editing .ov {
+      cursor: grab;
+      outline: 1px dashed transparent;
+    }
+    .page-stage.editing .ov:hover { outline-color: rgba(99,102,241,.9); }
+    .page-stage.editing .ov.dragging { cursor: grabbing; opacity: .85; }
+    .page-stage.editing .ov.selected {
+      outline: 2px solid #6366f1;
+      outline-offset: 3px;
+    }
+    .ov-handle {
+      position: absolute;
+      top: -10px; right: -10px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #f43f5e;
+      color: #fff;
+      border: 2px solid #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 5;
+    }
+    .page-stage.editing .ov.selected .ov-handle { display: flex; }
+
+    .editor-side {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .editor-panel {
+      background: rgba(0,0,0,0.16);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .editor-panel h5 {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .tool-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tool-chip {
+      border: 1px solid var(--card-border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 650;
+      border-radius: 8px;
+      padding: 7px 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tool-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .tool-chip.placed {
+      opacity: .45;
+      cursor: default;
+    }
+    .tool-chip.placed:hover { border-color: var(--card-border); color: var(--text-main); }
+    .editor-empty {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+    .ov-list { display: flex; flex-direction: column; gap: 6px; max-height: 168px; overflow-y: auto; }
+    .ov-list-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12.5px; color: var(--text-muted);
+      background: rgba(255,255,255,0.03);
+      border-radius: 7px;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .ov-list-row:hover { background: rgba(99,102,241,.14); color: var(--text-main); }
+    .ov-list-row .pill {
+      font-weight: 800; font-size: 11px;
+      background: var(--primary); color: #fff;
+      border-radius: 4px; padding: 2px 6px;
+      flex-shrink: 0;
+    }
+    .ov-list-row .pill.text { background: #64748b; }
+    .ov-list-row span.label {
+      flex-grow: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 900px) {
+      .editor-layout { grid-template-columns: 1fr; }
+      .editor-side { flex-direction: column; }
+    }
+
+    /* --- Deck navigation strip in the live session --- */
+    .deck-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 15px;
+      background: rgba(99,102,241,.10);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap;
+    }
+    .deck-bar-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .deck-bar-meta strong { color: var(--text-main); }
+    .deck-bar-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+
+    /* --- Projector overlay stage --- */
+    #proj-question-image-container .page-stage { max-width: 100%; }
+
+    /* ============================================================
+       PHONE LINK PANEL
+       ============================================================ */
+    .remote-link-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .remote-link-input {
+      flex-grow: 1;
+      min-width: 0;
+      font-size: 11px;
+      padding: 5px 8px;
+      background: rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-family: 'Inter', monospace;
+    }
+    .remote-copy-btn {
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--text-main);
+      border-radius: 6px;
+      padding: 0 9px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .remote-copy-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .remote-scan-status.state-ok { color: var(--accent-emerald); }
+    .remote-scan-status.state-warn { color: #f59e0b; }
+    .remote-scan-status.state-bad { color: #f43f5e; }
+    .remote-phone-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      border-radius: 5px;
+      padding: 2px 6px;
+      margin-top: 6px;
+      background: rgba(100,116,139,.22);
+      color: #94a3b8;
+    }
+    .remote-phone-pill.live {
+      background: rgba(16,185,129,.18);
+      color: var(--accent-emerald);
+    }
+    /* QR must render on white with its quiet zone intact or phones won't read it. */
+    #remote-scan-qr {
+      background: #fff;
+      border-radius: 6px;
+      display: block;
+    }
+    .mobile-scan-status.state-ok { color: #34d399; }
+    .mobile-scan-status.state-bad { color: #fb7185; }
+    .mobile-queue-note {
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    /* ============================================================
+       SHIPPING POLISH
+       ============================================================ */
+    :root {
+      --surface-subtle: #f8fafc;
+      --surface-tint: #eef2ff;
+      --focus-ring: rgba(79, 70, 229, 0.28);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :where(button, a, input, select, textarea):focus-visible {
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    :where(button, a):focus:not(:focus-visible) {
+      outline: none;
+    }
+
+    .sidebar {
+      border-right: 0;
+      box-shadow: 8px 0 32px rgba(15, 23, 42, 0.07);
+    }
+
+    .brand {
+      border-bottom: 0;
+      padding-bottom: 18px;
+    }
+
+    .brand-icon {
+      box-shadow: 0 8px 20px -9px rgba(79, 70, 229, 0.72);
+    }
+
+    .nav-list {
+      padding-top: 10px;
+    }
+
+    .nav-item button {
+      min-height: 44px;
+      color: #475569;
+    }
+
+    .nav-item button svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.9;
+    }
+
+    .nav-item.active button {
+      background: var(--surface-tint);
+      color: #3730a3;
+    }
+
+    .nav-item.active button svg {
+      stroke-width: 2.35;
+    }
+
+    .header-bar {
+      border-bottom-color: #e2e8f0;
+      backdrop-filter: blur(14px);
+    }
+
+    .projector-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 6px 10px;
+      border-radius: 9px;
+      background: var(--surface-subtle);
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .projector-status > span {
+      box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.12);
+      flex: 0 0 auto;
+    }
+
+    .glass-card {
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    #session-setup-view {
+      max-width: 1040px;
+      margin: 0 auto;
+      border: 0;
+      box-shadow: 0 22px 54px -36px rgba(15, 23, 42, 0.48);
+    }
+
+    .live-setup-intro {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 28px;
+      padding-bottom: 22px;
+      margin-bottom: 26px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .live-setup-intro h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+    }
+
+    .live-setup-intro p {
+      max-width: 58ch;
+      margin-top: 7px;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      line-height: 1.55;
+    }
+
+    .poll-mode-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      flex: 0 0 360px;
+      padding: 4px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+    }
+
+    .poll-mode-switch .btn {
+      justify-content: center;
+      min-height: 38px;
+      padding: 8px 12px !important;
+      border: 0;
+      border-radius: 8px;
+      box-shadow: none;
+      font-size: 13px !important;
+    }
+
+    .poll-mode-switch .btn-primary {
+      background: #4338ca;
+    }
+
+    .poll-mode-switch .btn-secondary {
+      background: transparent;
+      color: #475569;
+    }
+
+    .poll-mode-switch .btn:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    #session-setup-view .setup-grid {
+      gap: 26px;
+      margin-bottom: 28px;
+    }
+
+    #session-setup-view .form-group {
+      margin-bottom: 0;
+    }
+
+    #session-setup-view input[type="range"],
+    #classes-tab input[type="range"] {
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .form-select:focus-visible,
+    .form-input:focus-visible,
+    .form-textarea:focus-visible {
+      border-color: var(--primary);
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+
+    .home-title {
+      max-width: 18ch;
+      letter-spacing: -0.03em;
+      text-wrap: balance;
+    }
+
+    .home-hero-art {
+      background: var(--surface-tint);
+      border: 0;
+      overflow: hidden;
+    }
+
+    .home-hero-card {
+      box-shadow: 0 20px 42px -25px rgba(15, 23, 42, 0.55);
+    }
+
+    .step-card {
+      transition: border-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .step-card:hover {
+      border-color: #c7d2fe;
+      transform: translateY(-2px);
+    }
+
+    .item-main {
+      display: flex;
+      align-items: center;
+      flex-grow: 1;
+      min-width: 0;
+      max-width: 75%;
+    }
+
+    .question-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 16px;
+      margin-top: 5px;
+    }
+
+    .question-summary > span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 44ch;
+    }
+
+    .empty-state {
+      min-height: 230px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 32px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      border: 1px dashed #cbd5e1;
+      border-radius: 14px;
+      background: var(--surface-subtle);
+    }
+
+    .empty-state-icon {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--surface-tint);
+      color: var(--primary);
+    }
+
+    .empty-state-icon svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    .empty-state h4 {
+      color: var(--text-main);
+      font-size: 17px;
+      margin-bottom: 4px;
+    }
+
+    .empty-state p {
+      font-size: 13.5px;
+      line-height: 1.55;
+    }
+
+    .remote-scan-panel.qr-hidden {
+      margin-top: auto;
+      background: #ffffff;
+      box-shadow: none;
+    }
+
+    .remote-scan-toggle:disabled {
+      cursor: default;
+      opacity: 0.48;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 980px) {
+      .sidebar {
+        box-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.5);
+      }
+
+      .nav-list {
+        scrollbar-width: none;
+        scroll-snap-type: x proximity;
+        overscroll-behavior-x: contain;
+      }
+
+      .nav-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      .nav-item {
+        scroll-snap-align: center;
+      }
+
+      .live-setup-intro {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .poll-mode-switch {
+        flex-basis: auto;
+        width: 100%;
+      }
+
+      .home-hero-art {
+        order: 0;
+      }
+
+      .question-bank-actions {
+        width: 100%;
+      }
+
+      .item-main {
+        width: 100%;
+        max-width: none;
+        align-items: flex-start;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .header-bar {
+        min-height: 56px;
+        flex-wrap: nowrap;
+      }
+
+      .page-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .projector-status {
+        width: 76px;
+        justify-content: center;
+        padding-inline: 8px;
+        font-size: 0;
+      }
+
+      .projector-status::after {
+        content: 'Display';
+        font-size: 11px;
+      }
+
+      .app-container {
+        padding: 14px 12px 28px;
+      }
+
+      .glass-card {
+        padding: 18px;
+      }
+
+      .home-title {
+        font-size: 29px;
+      }
+
+      .home-cta-row .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .home-hero-art {
+        padding: 18px 14px;
+      }
+
+      .live-setup-intro h2 {
+        font-size: 20px;
+      }
+
+      .question-bank-actions {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px !important;
+      }
+
+      .question-bank-actions .btn {
+        min-width: 0;
+        justify-content: center;
+        padding-inline: 8px;
+      }
+
+      .item-row {
+        padding: 17px;
+      }
+
+      .question-summary {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .question-summary > span:last-child {
+        max-width: 100%;
+      }
+
+      .row-actions .btn-secondary {
+        flex: 1;
+        justify-content: center;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1721,17 +2924,23 @@
       <div class="brand-name">Clickers</div>
     </div>
     <ul class="nav-list">
+      <li class="nav-item" data-tab="home-tab">
+        <button type="button"><i data-lucide="compass"></i>How it works</button>
+      </li>
       <li class="nav-item active" data-tab="live-tab">
-        <button><i data-lucide="play-circle"></i>Live Session</button>
+        <button type="button"><i data-lucide="play-circle"></i>Live Session</button>
       </li>
       <li class="nav-item" data-tab="classes-tab">
-        <button><i data-lucide="printer"></i>Print Cards</button>
+        <button type="button"><i data-lucide="printer"></i>Print Cards</button>
       </li>
       <li class="nav-item" data-tab="questions-tab">
-        <button><i data-lucide="help-circle"></i>Question Bank</button>
+        <button type="button"><i data-lucide="help-circle"></i>Question Bank</button>
+      </li>
+      <li class="nav-item" data-tab="pdf-tab">
+        <button type="button"><i data-lucide="file-text"></i>PDF Questions</button>
       </li>
     </ul>
-    <div class="remote-scan-panel sidebar-remote-scan" id="remote-scan-panel">
+    <div class="remote-scan-panel sidebar-remote-scan qr-hidden" id="remote-scan-panel">
       <div class="remote-scan-header">
         <div>
           <div class="remote-scan-title">
@@ -1740,8 +2949,8 @@
           </div>
           <div class="remote-scan-status" id="remote-scan-status">Preparing link</div>
         </div>
-        <button class="remote-scan-toggle" id="btn-toggle-qr" type="button" title="Hide phone QR" aria-label="Hide phone QR" aria-pressed="false">
-          <i data-lucide="eye-off" style="width:16px;height:16px;"></i>
+        <button class="remote-scan-toggle" id="btn-toggle-qr" type="button" title="Phone scanner is available during a live session" aria-label="Phone scanner is available during a live session" aria-pressed="true" disabled>
+          <i data-lucide="qr-code" style="width:16px;height:16px;"></i>
         </button>
       </div>
       <div class="remote-scan-body">
@@ -1750,6 +2959,11 @@
         </div>
         <div>
           <a class="remote-scan-link" id="remote-scan-link" href="#" target="_blank" rel="noopener">Mobile scanner link</a>
+          <div class="remote-link-row">
+            <input class="remote-link-input" id="remote-link-text" type="text" readonly value="" aria-label="Phone scanner link">
+            <button class="remote-copy-btn" id="btn-copy-remote-link" type="button" title="Copy link">Copy</button>
+          </div>
+          <div class="remote-phone-pill" id="remote-phone-pill"><span id="remote-phone-pill-text">No phone linked</span></div>
           <div class="remote-scan-help" id="remote-scan-help">Start the Clickers server, scan this code, then use the phone camera for the class.</div>
           <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;" id="hosted-url-container">
             <label for="input-hosted-url" style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Static Web URL (for file:// sync)</label>
@@ -1769,7 +2983,7 @@
       <div class="page-title" id="page-title-text">Live Session</div>
       <div class="header-actions">
         <!-- Status Indicator / Sync info -->
-        <span id="projector-status" style="font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+        <span id="projector-status" class="projector-status" role="status" aria-live="polite">
           <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #64748b; display: inline-block;"></span>
           Projector Not Connected
         </span>
@@ -1779,16 +2993,159 @@
     <div class="app-container">
 
       <!-- ==================== VIEW: LIVE SESSION ==================== -->
+      <!-- ==================== VIEW: HOW IT WORKS ==================== -->
+      <div class="view-pane" id="home-tab">
+        <div class="glass-card" style="margin-bottom: 22px;">
+          <div class="card-body">
+            <div class="home-hero">
+              <div>
+                <h1 class="home-title">Every student answers by holding up a piece of paper.</h1>
+                <p class="home-lede">
+                  Each student gets one printed card with a square black-and-white marker on it. The four edges are
+                  labelled A, B, C and D. To answer, they rotate the card so their choice is at the top and hold it up.
+                  You sweep the room with a camera; Clickers reads every card at once and tallies the answers. No
+                  logins, no phones for students, no batteries.
+                </p>
+                <div class="home-cta-row">
+                  <button class="btn btn-primary" data-goto-tab="classes-tab">
+                    <i data-lucide="printer"></i> Print your cards
+                  </button>
+                  <button class="btn btn-secondary" data-goto-tab="pdf-tab">
+                    <i data-lucide="file-text"></i> Use an existing PDF
+                  </button>
+                  <button class="btn btn-secondary" data-goto-tab="live-tab">
+                    <i data-lucide="play-circle"></i> Run a session
+                  </button>
+                </div>
+              </div>
+              <div class="home-hero-art">
+                <div class="home-hero-card" id="home-demo-card">
+                  <span class="hero-letter hl-t">A</span>
+                  <span class="hero-letter hl-r">B</span>
+                  <span class="hero-letter hl-b">C</span>
+                  <span class="hero-letter hl-l">D</span>
+                  <div id="home-demo-marker"></div>
+                </div>
+                <div class="home-hero-caption">
+                  Answering <strong id="home-demo-answer">A</strong> &mdash; the chosen letter is whichever one is
+                  <strong>at the top</strong> when the card is held up.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h4>Print one card per student</h4>
+            <p>
+              Print cards 1&ndash;30 once and reuse them all year &mdash; they are not tied to a name or a class.
+              Laminate them if you can. Set your printer to landscape at 100% scale; each card prints a 50&nbsp;mm
+              ruler so you can confirm nothing got shrunk.
+            </p>
+            <button class="step-link" data-goto-tab="classes-tab">Open Print Cards <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></button>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h4>Set up a question</h4>
+            <p>
+              Type a question into the Question Bank, run an unscripted Quick Poll with no set-up at all, or upload a
+              PDF you already teach from and drop draggable A/B/C/D choices straight onto the page.
+            </p>
+            <button class="step-link" data-goto-tab="pdf-tab">Import from a PDF <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></button>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h4>Project it and scan the room</h4>
+            <p>
+              Open the projector window on your second screen, then point your laptop webcam &mdash; or your phone,
+              linked by QR code &mdash; at the class. Cards are recognised as students raise them, and the checklist
+              fills in without revealing anyone&rsquo;s answer.
+            </p>
+            <button class="step-link" data-goto-tab="live-tab">Start a session <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></button>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <h4>Reveal the results</h4>
+            <p>
+              When everyone has answered, hit <em>Project Results</em>. The bar chart appears on the projector with the
+              correct answer highlighted. Reset and ask the next question without leaving the screen.
+            </p>
+          </div>
+        </div>
+
+        <div class="home-columns">
+          <div class="glass-card">
+            <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 14px; margin-bottom: 16px;">
+              <h3 class="card-title"><i data-lucide="rocket" style="width:17px;height:17px;vertical-align:-3px;"></i> First five minutes</h3>
+            </div>
+            <div class="card-body">
+              <ul class="checklist">
+                <li>
+                  <span class="tick"><i data-lucide="check" style="width:12px;height:12px;"></i></span>
+                  <div><strong>Print cards 1&ndash;5</strong> as a test. Hold one up two metres from your webcam and
+                  check it is detected before you print thirty.</div>
+                </li>
+                <li>
+                  <span class="tick"><i data-lucide="check" style="width:12px;height:12px;"></i></span>
+                  <div><strong>Run a Quick Poll</strong> &mdash; it needs no question written in advance. Ask anything
+                  out loud and let the class answer A&ndash;D.</div>
+                </li>
+                <li>
+                  <span class="tick"><i data-lucide="check" style="width:12px;height:12px;"></i></span>
+                  <div><strong>Open the projector window</strong> and drag it to your second display, then set it
+                  full screen.</div>
+                </li>
+                <li>
+                  <span class="tick"><i data-lucide="check" style="width:12px;height:12px;"></i></span>
+                  <div><strong>Link your phone</strong> with the QR code in the sidebar if your laptop camera cannot
+                  see the back row. The phone becomes a roaming scanner.</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 14px; margin-bottom: 16px;">
+              <h3 class="card-title"><i data-lucide="help-circle" style="width:17px;height:17px;vertical-align:-3px;"></i> Common questions</h3>
+            </div>
+            <div class="card-body">
+              <div class="faq-item">
+                <div class="faq-q">Can students see each other&rsquo;s answers?</div>
+                <div class="faq-a">Not easily &mdash; the marker looks the same from across the room whichever way it is turned. Private mode is on by default, so your own screen shows only a tick, never the letter.</div>
+              </div>
+              <div class="faq-item">
+                <div class="faq-q">A card is not being detected.</div>
+                <div class="faq-a">Almost always print scale or glare. Re-print at 100% (check the 50&nbsp;mm ruler on the card), keep the white border around the marker clean, and avoid direct light on laminated cards.</div>
+              </div>
+              <div class="faq-item">
+                <div class="faq-q">Do I need to install anything?</div>
+                <div class="faq-a">No, for the laptop camera. To use a phone as the scanner on the same Wi-Fi, run <code>python3 server.py</code> from the project folder; otherwise host the file and the phone will relay over the internet.</div>
+              </div>
+              <div class="faq-item">
+                <div class="faq-q">Where is my data stored?</div>
+                <div class="faq-a">In this browser only. Questions and imported PDF pages stay on this machine &mdash; use <em>Save Set</em> in the Question Bank to export a file you can carry to another computer.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="view-pane active" id="live-tab">
         <!-- Step 1: Select Class & Question or Start Quick Poll -->
         <div id="session-setup-view" class="glass-card">
-          <div class="card-header" style="border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 20px;">
-            <div style="display: flex; gap: 16px;">
-              <button class="btn btn-primary" id="tab-setup-roster" style="padding: 6px 16px; font-size: 13px;">
+          <div class="live-setup-intro">
+            <div>
+              <h2>Start a classroom poll</h2>
+              <p>Choose a saved question or ask one aloud, then open the scanner when your class is ready.</p>
+            </div>
+            <div class="poll-mode-switch" role="group" aria-label="Poll type">
+              <button class="btn btn-primary" id="tab-setup-roster" type="button" aria-pressed="true">
                 Pre-loaded Poll
               </button>
-              <button class="btn btn-secondary" id="tab-setup-quick" style="padding: 6px 16px; font-size: 13px;">
-                Quick Poll (On-the-Fly)
+              <button class="btn btn-secondary" id="tab-setup-quick" type="button" aria-pressed="false">
+                Quick Poll
               </button>
             </div>
           </div>
@@ -1798,18 +3155,18 @@
             <div class="setup-grid">
               <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <label for="session-card-count-input" style="font-weight: 500;">Active Cards Count</label>
+                  <label for="session-card-count-input" style="font-weight: 500;">Active cards</label>
                   <span id="display-session-card-count" style="font-weight: 700; color: var(--primary);">30 Cards</span>
                 </div>
                 <input type="range" id="session-card-count-input" min="1" max="50" value="30" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
               </div>
               <div class="form-group">
-                <label for="session-question-select">Select Question</label>
+                <label for="session-question-select">Saved question</label>
                 <select class="form-select" id="session-question-select"></select>
               </div>
             </div>
             <button class="btn btn-primary" id="btn-start-session">
-              <i data-lucide="video"></i> Start Session & Open Scanner
+              <i data-lucide="video"></i> Start poll &amp; open scanner
             </button>
           </div>
 
@@ -1817,19 +3174,19 @@
           <div id="setup-quick-pane" style="display: none;">
             <div class="setup-grid">
               <div class="form-group">
-                <label for="quick-question-input">Quick Poll Question (Optional)</label>
+                <label for="quick-question-input">Question (optional)</label>
                 <input type="text" class="form-input" id="quick-question-input" placeholder="e.g. Do you agree with the statement?">
               </div>
               <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <label for="quick-card-count-input" style="font-weight: 500;">Active Cards Count</label>
+                  <label for="quick-card-count-input" style="font-weight: 500;">Active cards</label>
                   <span id="display-quick-card-count" style="font-weight: 700; color: var(--primary);">30 Cards</span>
                 </div>
                 <input type="range" id="quick-card-count-input" min="1" max="50" value="30" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
               </div>
             </div>
             <button class="btn btn-primary btn-emerald" id="btn-start-quick-session">
-              <i data-lucide="zap"></i> Start Quick Poll & Open Scanner
+              <i data-lucide="zap"></i> Start quick poll &amp; open scanner
             </button>
           </div>
         </div>
@@ -1856,8 +3213,27 @@
               </div>
               
               <!-- Active Question Image Display -->
+              <!-- Deck navigation: shown only when the session is running a PDF deck -->
+              <div class="deck-bar" id="deck-bar" style="display: none;">
+                <div class="deck-bar-meta">
+                  <i data-lucide="file-text" style="width:15px;height:15px;flex-shrink:0;"></i>
+                  <span>Deck <strong id="deck-name">&mdash;</strong> &middot; page <strong id="deck-position">1 / 1</strong></span>
+                </div>
+                <div class="deck-bar-actions">
+                  <button class="btn btn-secondary" id="btn-deck-prev" style="padding: 6px 12px; font-size: 13px;">
+                    <i data-lucide="chevron-left" style="width:15px;height:15px;"></i> Previous
+                  </button>
+                  <button class="btn btn-primary" id="btn-deck-next" style="padding: 6px 12px; font-size: 13px;">
+                    Next page <i data-lucide="chevron-right" style="width:15px;height:15px;"></i>
+                  </button>
+                </div>
+              </div>
+
               <div id="active-question-image-container" style="display: none; text-align: center; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.15);">
-                <img id="active-question-image" src="" style="max-height: 160px; max-width: 100%; border-radius: 8px; object-fit: contain; border: 1px solid var(--card-border);">
+                <div class="page-stage" id="active-page-stage" style="max-height: 260px; border-radius: 8px; overflow: hidden; border: 1px solid var(--card-border);">
+                  <img id="active-question-image" src="" style="max-height: 260px; max-width: 100%; object-fit: contain;">
+                  <div class="ov-layer" id="active-overlay-layer" style="position:absolute; inset:0; pointer-events:none;"></div>
+                </div>
               </div>
 
               <!-- Projector Image Resizer Controls (syncs with projector screen) -->
@@ -1953,19 +3329,52 @@
           </div>
           <div class="card-body">
             <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
-              Choose how many generic, reusable cards to print (1 to 50). These cards are not assigned to a specific student name, meaning they can be reused across all of your classes.
+              Cards are generic and reusable &mdash; card #7 is card #7 in every class, every year. Print once,
+              laminate, and hand them out. Each card prints with the marker on one half and the student-facing
+              instructions on the other, so you can fold it down the dashed line.
             </p>
-            
-            <div class="form-group" style="margin-bottom: 30px;">
+
+            <div class="form-group" style="margin-bottom: 24px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <label for="slider-print-count" style="font-weight: 600; font-size: 14px; color: var(--text-main);">Number of cards to print</label>
                 <span id="display-print-count" style="font-size: 18px; font-weight: 700; color: var(--primary);">30 Cards</span>
               </div>
               <input type="range" id="slider-print-count" min="1" max="50" value="30" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
             </div>
-            
+
+            <div class="form-group" style="margin-bottom: 24px;">
+              <label style="font-weight: 600; font-size: 14px; color: var(--text-main); display:block; margin-bottom: 10px;">Cards per sheet</label>
+              <div class="seg-control" id="print-layout-toggle">
+                <button type="button" class="seg-btn active" data-per-sheet="1">1 per page &mdash; largest marker</button>
+                <button type="button" class="seg-btn" data-per-sheet="2">2 per page &mdash; saves paper</button>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label for="slider-marker-mm" style="font-weight: 600; font-size: 14px; color: var(--text-main);">Marker size</label>
+                <span id="display-marker-mm" style="font-size: 18px; font-weight: 700; color: var(--primary);">80 mm</span>
+              </div>
+              <input type="range" id="slider-marker-mm" min="40" max="85" step="5" value="80" style="width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;">
+              <p class="hint-text" id="marker-range-hint" style="margin-top: 8px;">
+                Size of the black square itself. An 80&nbsp;mm marker is read comfortably from about 3&nbsp;m by a 720p
+                webcam &mdash; detection depends on how many camera pixels the square covers, so distance matters far
+                more than lighting. For a room deeper than that, walk the phone scanner up the aisles rather than
+                printing larger; one card per page is already close to the width of the paper.
+              </p>
+            </div>
+
+            <div class="callout callout-amber" style="margin-bottom: 22px;">
+              <i data-lucide="printer" style="width:16px;height:16px;flex-shrink:0;margin-top:2px;"></i>
+              <div>
+                <strong>Before you print:</strong> in the browser print dialog set <em>Layout: Landscape</em>,
+                <em>Margins: Default</em> and <em>Scale: 100%</em> (not &ldquo;Fit to page&rdquo;). Scaling changes the
+                physical marker size and the ruler printed on each card will tell you if it happened.
+              </div>
+            </div>
+
             <button class="btn btn-primary" id="btn-print-generic" style="width: 100%; padding: 12px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
-              <i data-lucide="printer"></i> Generate & Print Cards
+              <i data-lucide="printer"></i> Generate &amp; Print Cards
             </button>
           </div>
         </div>
@@ -1976,7 +3385,7 @@
         <div class="glass-card">
           <div class="card-header">
             <h3 class="card-title">Question Bank</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div class="question-bank-actions" style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-secondary" id="btn-save-questions">
                 <i data-lucide="download"></i> Save Set
               </button>
@@ -1991,6 +3400,79 @@
           </div>
           <div class="list-wrapper" id="questions-list-container">
             <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW: PDF QUESTIONS ==================== -->
+      <div class="view-pane" id="pdf-tab">
+        <div class="glass-card" style="margin-bottom: 20px;">
+          <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 15px; margin-bottom: 20px;">
+            <div>
+              <h3 class="card-title">Ask questions straight from a PDF</h3>
+              <p class="item-subtitle" style="margin-top: 4px;">Use the slides, worksheets and past papers you already teach from &mdash; no retyping.</p>
+            </div>
+            <div class="row-actions" id="pdf-header-actions" style="display: none;">
+              <button class="btn btn-secondary" id="btn-pdf-clear">
+                <i data-lucide="x" style="width:16px;height:16px;"></i> Close PDF
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="dropzone" id="pdf-dropzone">
+              <div class="dz-icon"><i data-lucide="file-up" style="width:34px;height:34px;"></i></div>
+              <h4>Drop a PDF here, or click to choose one</h4>
+              <p>
+                Pages are rendered as images inside this browser &mdash; nothing is uploaded anywhere.<br>
+                Then drop draggable A/B/C/D answer choices and text boxes on top of any page.
+              </p>
+            </div>
+            <input type="file" id="pdf-file-input" accept="application/pdf,.pdf" style="display: none;">
+            <div id="pdf-progress-wrap" style="display: none;">
+              <div class="pdf-progress"><div class="pdf-progress-fill" id="pdf-progress-fill"></div></div>
+              <p class="hint-text" id="pdf-progress-text" style="margin-top: 8px;">Reading PDF&hellip;</p>
+            </div>
+            <div class="callout callout-rose" id="pdf-error" style="display: none; margin-top: 14px;">
+              <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;margin-top:2px;"></i>
+              <div id="pdf-error-text"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card" id="pdf-pages-card" style="display: none;">
+          <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 15px; margin-bottom: 16px;">
+            <div>
+              <h3 class="card-title" id="pdf-doc-title">Document</h3>
+              <p class="item-subtitle" style="margin-top: 4px;" id="pdf-selection-summary">No pages selected</p>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-secondary" id="btn-pdf-select-all">
+                <i data-lucide="check-square" style="width:16px;height:16px;"></i> Select all
+              </button>
+              <button class="btn btn-secondary" id="btn-pdf-select-none">
+                <i data-lucide="square" style="width:16px;height:16px;"></i> Clear
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="hint-text" style="margin-bottom: 4px;">
+              Click a page to include it. Use <strong>Edit</strong> on a page to place the answer choices and any extra
+              text &mdash; everything you place is projected on top of the page exactly where you put it.
+            </p>
+            <div class="pdf-page-grid" id="pdf-page-grid"></div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px;">
+              <button class="btn btn-emerald" id="btn-pdf-run-deck" style="flex: 1 1 220px; justify-content: center; padding: 12px; font-weight: 600;">
+                <i data-lucide="play-circle"></i> Run selected pages as a live deck
+              </button>
+              <button class="btn btn-primary" id="btn-pdf-import" style="flex: 1 1 220px; justify-content: center; padding: 12px; font-weight: 600;">
+                <i data-lucide="library"></i> Add selected pages to Question Bank
+              </button>
+            </div>
+            <p class="hint-text" style="margin-top: 10px;">
+              A live deck starts a session immediately and gives you Previous / Next controls to walk the class through
+              the pages, resetting the poll on each one. Adding to the Question Bank saves the pages so you can pick
+              them individually later.
+            </p>
           </div>
         </div>
       </div>
@@ -2085,6 +3567,110 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: PDF PAGE EDITOR ==================== -->
+  <div class="modal-backdrop editor-modal" id="page-editor-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="card-title" id="page-editor-title">Edit page</h3>
+        <button class="btn btn-secondary btn-icon-only" id="btn-page-editor-close" title="Close">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="editor-layout">
+          <div class="editor-stage-wrap">
+            <div class="page-stage editing" id="editor-stage">
+              <img id="editor-page-img" src="" alt="PDF page">
+              <div class="ov-layer" id="editor-overlay-layer" style="position:absolute; inset:0;"></div>
+            </div>
+          </div>
+          <div class="editor-side">
+            <div class="editor-panel">
+              <h5>Answer choices</h5>
+              <div class="tool-row" id="editor-option-tools">
+                <button class="tool-chip" type="button" data-add-option="A">+ A</button>
+                <button class="tool-chip" type="button" data-add-option="B">+ B</button>
+                <button class="tool-chip" type="button" data-add-option="C">+ C</button>
+                <button class="tool-chip" type="button" data-add-option="D">+ D</button>
+              </div>
+              <div class="tool-row" style="margin-top: 8px;">
+                <button class="tool-chip" type="button" id="btn-add-all-options">
+                  <i data-lucide="layout-grid" style="width:14px;height:14px;"></i> Place all four
+                </button>
+              </div>
+              <p class="editor-empty" style="margin-top: 10px;">
+                Drag a chip anywhere on the page. Double-click it to edit its label, or leave it as just the letter.
+              </p>
+            </div>
+
+            <div class="editor-panel">
+              <h5>Text</h5>
+              <div class="tool-row">
+                <button class="tool-chip" type="button" id="btn-add-text">
+                  <i data-lucide="type" style="width:14px;height:14px;"></i> Text box
+                </button>
+                <button class="tool-chip" type="button" id="btn-add-callout">
+                  <i data-lucide="sticky-note" style="width:14px;height:14px;"></i> Highlight note
+                </button>
+              </div>
+              <p class="editor-empty" style="margin-top: 10px;">
+                Use text boxes to add a question the PDF does not ask, or to point at part of the page.
+              </p>
+            </div>
+
+            <div class="editor-panel">
+              <h5>Selected item</h5>
+              <div id="editor-selection-empty" class="editor-empty">Click an item on the page to change its text, size or colour.</div>
+              <div id="editor-selection-controls" style="display: none;">
+                <div class="form-group" style="margin-bottom: 10px;">
+                  <label class="form-label" style="font-size: 12px;" for="editor-item-text">Label</label>
+                  <input class="form-input" id="editor-item-text" type="text" style="font-size: 13px; padding: 7px 10px; height: auto;">
+                </div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label class="form-label" style="font-size: 12px; margin:0;" for="editor-item-size">Size</label>
+                    <span class="hint-text" id="editor-item-size-val">100%</span>
+                  </div>
+                  <input type="range" id="editor-item-size" min="40" max="260" step="5" value="100" style="width:100%; height:5px; border-radius:3px; background: rgba(255,255,255,0.1); outline:none;">
+                </div>
+                <button class="btn btn-rose" id="btn-editor-delete-item" style="width:100%; justify-content:center; padding: 8px; font-size: 13px;">
+                  <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Remove item
+                </button>
+              </div>
+            </div>
+
+            <div class="editor-panel">
+              <h5>Question settings</h5>
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label class="form-label" style="font-size: 12px;" for="editor-question-text">Question shown above the page</label>
+                <input class="form-input" id="editor-question-text" type="text" placeholder="e.g. Which step is wrong?" style="font-size: 13px; padding: 7px 10px; height: auto;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 12px;">Correct answer</label>
+                <div class="seg-control" id="editor-correct-toggle">
+                  <button type="button" class="seg-btn active" data-correct="">None</button>
+                  <button type="button" class="seg-btn" data-correct="A">A</button>
+                  <button type="button" class="seg-btn" data-correct="B">B</button>
+                  <button type="button" class="seg-btn" data-correct="C">C</button>
+                  <button type="button" class="seg-btn" data-correct="D">D</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="editor-panel" id="editor-items-panel" style="display:none;">
+              <h5>Items on this page</h5>
+              <div class="ov-list" id="editor-items-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-page-editor-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-page-editor-save">Save page</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== PRINT ONLY ROOT ELEMENT ==================== -->
   <div id="print-section">
     <!-- Populated dynamically upon print command -->
@@ -2111,7 +3697,10 @@
         <div class="proj-question-text" id="proj-question-text">Loading question...</div>
         
         <div id="proj-question-image-container" style="display: none; text-align: center; margin-top: 20px; margin-bottom: 10px; position: relative;">
-          <img id="proj-question-image" src="" style="max-height: 450px; max-width: 100%; border-radius: 12px; object-fit: contain; border: 2px solid rgba(255,255,255,0.05); padding: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: max-height 0.2s ease;">
+          <div class="page-stage" id="proj-page-stage" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden;">
+            <img id="proj-question-image" src="" style="max-height: 450px; max-width: 100%; object-fit: contain; transition: max-height 0.2s ease;">
+            <div class="ov-layer" id="proj-overlay-layer" style="position:absolute; inset:0; pointer-events:none;"></div>
+          </div>
           <div class="image-resizer-control no-print" style="margin-top: 8px; display: flex; justify-content: center; align-items: center; gap: 10px;">
             <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
               <i data-lucide="zoom-in" style="width:14px;height:14px;"></i> Size:
@@ -2219,6 +3808,7 @@
           </button>
         </div>
         <input type="file" id="mobile-photo-input" accept="image/*" capture="environment" style="display:none;">
+        <div class="mobile-queue-note" id="mobile-queue-note" style="display:none;"></div>
         <div class="mobile-latest">
           <span id="mobile-latest-scan">No scans yet</span>
           <strong id="mobile-session-short"></strong>
@@ -2264,22 +3854,29 @@
       return marker;
     }
 
-    // Creates high-resolution crisp SVG markup for the 7x7 ArUco marker
-    function generateArucoSVG(id, size = 150) {
+    // Creates high-resolution crisp SVG markup for the 7x7 ArUco marker.
+    // `quiet` adds a white margin (in marker cells) around the black border. A quiet
+    // zone is REQUIRED for reliable detection: without it the black border can bleed
+    // into whatever sits next to it on the page and the marker stops being found.
+    // `unit` lets the caller emit physical print sizes (e.g. size=80, unit='mm').
+    function generateArucoSVG(id, size = 150, quiet = 1, unit = '') {
       const matrix = getArucoMatrix(id);
-      let rects = [];
+      const span = 7 + quiet * 2;
+      const rects = [];
       // Background of 7x7 is black, forming the outer black border.
       // Inner 5x5 contains white cells where matrix bit is 1.
       for (let y = 0; y < 5; y++) {
         for (let x = 0; x < 5; x++) {
           if (matrix[x][y] === 1) {
-            rects.push(`<rect x="${x + 1}" y="${y + 1}" width="1" height="1" fill="white" />`);
+            rects.push(`<rect x="${x + 1 + quiet}" y="${y + 1 + quiet}" width="1" height="1" fill="#ffffff" />`);
           }
         }
       }
+      const dim = `${size}${unit}`;
       return `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 7" width="${size}" height="${size}" shape-rendering="crispEdges">
-          <rect x="0" y="0" width="7" height="7" fill="black" />
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${span} ${span}" width="${dim}" height="${dim}" shape-rendering="crispEdges" role="img" aria-label="Clicker card ${id}">
+          <rect x="0" y="0" width="${span}" height="${span}" fill="#ffffff" />
+          <rect x="${quiet}" y="${quiet}" width="7" height="7" fill="#000000" />
           ${rects.join('')}
         </svg>
       `;
@@ -2353,7 +3950,7 @@
           correct: 'C'
         }
       ];
-      localStorage.setItem('clickers_questions', JSON.stringify(questions));
+      saveQuestions();
     }
 
     // ----------------------------------------------------
@@ -2361,30 +3958,14 @@
     // ----------------------------------------------------
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', () => {
-        const tabId = item.getAttribute('data-tab');
-        
-        // Hide print tab custom views, clean routes
-        document.getElementById('main-content').style.display = 'flex';
-        document.getElementById('main-content').style.marginLeft = '';
-        document.getElementById('sidebar-nav').style.display = 'flex';
+        window.goToTab(item.getAttribute('data-tab'));
+      });
+    });
 
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
-        
-        item.classList.add('active');
-        document.getElementById(tabId).classList.add('active');
-
-        // Dynamically configure heading bar title
-        const titles = {
-          'live-tab': 'Live Session',
-          'classes-tab': 'Print Cards',
-          'questions-tab': 'Question Bank'
-        };
-        document.getElementById('page-title-text').innerText = titles[tabId] || 'Clickers';
-        
-        // Load tab state content
-        if (tabId === 'questions-tab') renderQuestionsList();
-        if (tabId === 'live-tab') initLiveSetup();
+    // In-page shortcuts (the landing page's calls to action)
+    document.querySelectorAll('[data-goto-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.goToTab(btn.getAttribute('data-goto-tab'));
       });
     });
 
@@ -2395,13 +3976,16 @@
     let isMobileScannerWindow = false;
     let mobileSessionId = '';
     let mobileTeacherOrigin = '';
+    let mobileForceCloud = false;
     let projectorStateUpdateHandler = null;
     const mobileRouteMatch = window.location.hash.match(/^#mobile-scan\/([A-Za-z0-9_-]+)/);
 
     if (mobileRouteMatch) {
       isMobileScannerWindow = true;
       mobileSessionId = mobileRouteMatch[1];
-      mobileTeacherOrigin = (new URLSearchParams(window.location.search).get('teacherOrigin') || window.location.origin).replace(/\/+$/, '');
+      const mobileParams = new URLSearchParams(window.location.search);
+      mobileForceCloud = mobileParams.get('mode') === 'cloud';
+      mobileTeacherOrigin = (mobileParams.get('teacherOrigin') || window.location.origin).replace(/\/+$/, '');
       document.body.classList.add('mobile-scanner-mode');
       document.getElementById('sidebar-nav').style.display = 'none';
       document.getElementById('main-content').style.display = 'none';
@@ -2536,10 +4120,49 @@
       });
     }
 
+    const sliderMarkerMm = document.getElementById('slider-marker-mm');
+    const displayMarkerMm = document.getElementById('display-marker-mm');
+    if (sliderMarkerMm && displayMarkerMm) {
+      sliderMarkerMm.addEventListener('input', (e) => {
+        displayMarkerMm.innerText = `${e.target.value} mm`;
+      });
+    }
+
+    document.querySelectorAll('#print-layout-toggle .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#print-layout-toggle .seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const per = parseInt(btn.getAttribute('data-per-sheet'), 10) || 1;
+        // Two-up halves the vertical room, so cap the marker to what still fits.
+        // These caps come from the paper, not preference: the marker plus its
+        // quiet zone, the labels and the ruler have to fit inside one card.
+        if (sliderMarkerMm) {
+          const max = per === 2 ? 55 : 85;
+          const min = per === 2 ? 30 : 40;
+          sliderMarkerMm.min = String(min);
+          sliderMarkerMm.max = String(max);
+          let val = parseInt(sliderMarkerMm.value, 10);
+          if (val > max) val = max;
+          if (val < min) val = min;
+          sliderMarkerMm.value = String(val);
+          if (displayMarkerMm) displayMarkerMm.innerText = `${val} mm`;
+        }
+        const hint = document.getElementById('marker-range-hint');
+        if (hint) {
+          hint.innerText = per === 2
+            ? 'Two cards per sheet leaves room for a 55 mm marker at most, which a 720p webcam reads from roughly 2 m. Halves your paper, but plan on scanning with the phone.'
+            : 'Size of the black square itself. An 80 mm marker is read comfortably from about 3 m by a 720p webcam. For a deeper room, walk the phone scanner up the aisles rather than printing larger.';
+        }
+      });
+    });
+
     const btnPrintGeneric = document.getElementById('btn-print-generic');
     if (btnPrintGeneric) {
       btnPrintGeneric.addEventListener('click', () => {
         const count = parseInt(sliderPrintCount.value) || 30;
+        const activeSeg = document.querySelector('#print-layout-toggle .seg-btn.active');
+        printSettings.perSheet = activeSeg ? (parseInt(activeSeg.getAttribute('data-per-sheet'), 10) || 1) : 1;
+        printSettings.markerMm = sliderMarkerMm ? (parseInt(sliderMarkerMm.value, 10) || 80) : 80;
         openPrintPreview(count);
       });
     }
@@ -2647,6 +4270,26 @@
     function renderQuestionsList() {
       const listContainer = document.getElementById('questions-list-container');
       listContainer.innerHTML = '';
+
+      if (questions.length === 0) {
+        listContainer.innerHTML = `
+          <div class="empty-state">
+            <span class="empty-state-icon"><i data-lucide="message-square-plus"></i></span>
+            <div>
+              <h4>Your question bank is empty</h4>
+              <p>Add a question here, or bring in selected pages from a PDF.</p>
+            </div>
+            <button class="btn btn-primary" type="button" data-empty-add-question>
+              <i data-lucide="plus-circle"></i> Add your first question
+            </button>
+          </div>
+        `;
+        listContainer.querySelector('[data-empty-add-question]')?.addEventListener('click', () => {
+          document.getElementById('btn-add-question').click();
+        });
+        safeCreateIcons();
+        return;
+      }
       
       questions.forEach(q => {
         const row = document.createElement('div');
@@ -2656,25 +4299,25 @@
         
         let imgHtml = '';
         if (q.image) {
-          imgHtml = `<img src="${q.image}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover; margin-right: 15px; border: 1px solid var(--card-border); background: rgba(0,0,0,0.15);">`;
+          imgHtml = `<img src="${escapeHtml(q.image)}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover; margin-right: 15px; border: 1px solid var(--card-border); background: rgba(0,0,0,0.15);">`;
         }
 
         row.innerHTML = `
-          <div style="display: flex; align-items: center; flex-grow: 1; max-width: 75%;">
+          <div class="item-main">
             ${imgHtml}
             <div class="item-meta">
-              <div class="item-title">${q.text}</div>
-              <div class="item-subtitle" style="margin-top: 4px; display: flex; gap: 16px;">
-                <span><strong>Correct:</strong> <span style="color:#34d399">${correctOptionText}</span></span>
-                <span><strong>Options:</strong> A: ${q.options.A}, B: ${q.options.B}...</span>
+              <div class="item-title">${escapeHtml(q.text)}</div>
+              <div class="item-subtitle question-summary">
+                <span><strong>Correct:</strong> <span style="color:#34d399">${escapeHtml(correctOptionText)}</span></span>
+                <span><strong>Options:</strong> A: ${escapeHtml(q.options.A)}, B: ${escapeHtml(q.options.B)}&hellip;</span>
               </div>
             </div>
           </div>
           <div class="row-actions">
-            <button class="btn btn-secondary" onclick="editQuestion('${q.id}')" title="Edit">
+            <button class="btn btn-secondary" type="button" onclick="editQuestion('${q.id}')" title="Edit question">
               <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Edit
             </button>
-            <button class="btn btn-rose btn-icon-only" onclick="deleteQuestion('${q.id}')" title="Delete">
+            <button class="btn btn-rose btn-icon-only" type="button" onclick="deleteQuestion('${q.id}')" title="Delete question" aria-label="Delete question">
               <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
             </button>
           </div>
@@ -2739,7 +4382,7 @@
         });
       }
 
-      localStorage.setItem('clickers_questions', JSON.stringify(questions));
+      saveQuestions();
       closeModal('question-modal');
       renderQuestionsList();
     });
@@ -2779,8 +4422,10 @@
 
     window.deleteQuestion = function(questionId) {
       if (confirm('Are you sure you want to delete this question?')) {
+        const doomed = questions.find(qu => qu.id === questionId);
+        if (doomed && doomed.imageKey) ImageStore.del(doomed.imageKey);
         questions = questions.filter(qu => qu.id !== questionId);
-        localStorage.setItem('clickers_questions', JSON.stringify(questions));
+        saveQuestions();
         renderQuestionsList();
       }
     };
@@ -2795,7 +4440,14 @@
           alert("Your Question Bank is empty. Add questions before saving.");
           return;
         }
-        const dataStr = JSON.stringify(questions, null, 2);
+        // Strip the storage key; the file carries the image itself so it
+        // opens on any machine.
+        const portable = questions.map(q => {
+          const copy = Object.assign({}, q);
+          delete copy.imageKey;
+          return copy;
+        });
+        const dataStr = JSON.stringify(portable, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2839,7 +4491,12 @@
                   D: String(q.options.D || '')
                 },
                 correct: String(q.correct || ''),
-                image: q.image ? String(q.image) : ''
+                image: q.image ? String(q.image) : '',
+                // Keep everything a PDF page carries, or importing a set
+                // exported from another machine silently loses the overlays.
+                overlays: Array.isArray(q.overlays) ? q.overlays : [],
+                autoTitle: !!q.autoTitle,
+                source: q.source || undefined
               };
             });
 
@@ -2852,7 +4509,7 @@
               return;
             }
 
-            localStorage.setItem('clickers_questions', JSON.stringify(questions));
+            saveQuestions();
             renderQuestionsList();
             
             // Reload setup selector list
@@ -2876,6 +4533,48 @@
     // ----------------------------------------------------
     // PRINT CARDS ENGINE
     // ----------------------------------------------------
+    // Print settings live here so the preview and the paper always agree.
+    const printSettings = { perSheet: 1, markerMm: 80 };
+
+    // One card = one folded slip: marker half + instruction half, split by a fold line.
+    function buildCardMarkup(cardId, markerMm) {
+      // markerMm is the black square a teacher can put a ruler against. The
+      // SVG box is larger because it carries a 1-cell white quiet zone on
+      // each side: 7 cells of marker inside 9 cells of drawing.
+      const blackMm = markerMm;
+      const boxMm = Math.round((markerMm * 9 / 7) * 10) / 10;
+      const svgCode = generateArucoSVG(cardId, boxMm, 1, 'mm');
+      return `
+        <div class="front-side">
+          <div class="print-label print-label-t">A</div>
+          <div class="print-label print-label-r">B</div>
+          <div class="print-label print-label-b">C</div>
+          <div class="print-label print-label-l">D</div>
+          <div class="marker-container">${svgCode}</div>
+        </div>
+        <div class="back-side">
+          <div class="print-label print-label-t">A</div>
+          <div class="print-label print-label-l">B</div>
+          <div class="print-label print-label-b">C</div>
+          <div class="print-label print-label-r">D</div>
+          <div class="card-back-info">
+            <h2 class="back-student-name">Card #${cardId}</h2>
+            <div class="back-card-id">Card ID: ${cardId}</div>
+            <div class="back-instructions">
+              <span class="highlight">Turn the card so your answer is at the TOP</span><br>
+              then hold it up, marker facing the camera.
+            </div>
+            <div class="print-ruler" aria-hidden="true">
+              <span class="print-ruler-bar"></span>
+              <span class="print-ruler-label">This bar is 50&nbsp;mm &mdash; if it is not, reprint at 100% scale</span>
+            </div>
+            <div class="marker-caption">Marker on the other side should measure ${blackMm}&nbsp;mm</div>
+          </div>
+        </div>
+        <div class="fold-hint">fold here &mdash; marker outward</div>
+      `;
+    }
+
     window.openPrintPreview = function(count) {
       // Shift main container states to Print View
       document.getElementById('sidebar-nav').style.display = 'none';
@@ -2883,55 +4582,43 @@
       document.getElementById('main-content').style.marginLeft = '0';
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
-      
+
       const printTab = document.getElementById('print-tab');
       printTab.classList.add('active');
       document.getElementById('page-title-text').innerText = 'Print Cards';
-      
-      document.getElementById('print-class-title').innerText = `Print Clicker Cards (1-${count})`;
-      
-      // Build dynamic printable nodes
+
+      const perSheet = printSettings.perSheet;
+      const markerMm = printSettings.markerMm;
+      const sheets = Math.ceil(count / perSheet);
+      document.getElementById('print-class-title').innerText =
+        `Cards 1\u2013${count} \u00b7 ${sheets} sheet${sheets === 1 ? '' : 's'} \u00b7 ${markerMm}\u00a0mm markers`;
+
       const printRoot = document.getElementById('print-preview-root');
       printRoot.innerHTML = '';
-
       const printSection = document.getElementById('print-section');
       printSection.innerHTML = '';
-      
+
+      let sheet = null;
       for (let cardId = 1; cardId <= count; cardId++) {
-        const svgCode = generateArucoSVG(cardId, 230);
-        
-        // Renders visual preview inside app (styled for screen)
+        const markup = buildCardMarkup(cardId, markerMm);
+
+        // On-screen preview: 1:1 with what the paper gets.
         const previewFrame = document.createElement('div');
-        previewFrame.className = 'preview-card-frame';
-        previewFrame.innerHTML = `
-          <div class="front-side">
-            <div class="print-label print-label-t">A</div>
-            <div class="print-label print-label-r">B</div>
-            <div class="print-label print-label-b">C</div>
-            <div class="print-label print-label-l">D</div>
-            <div class="marker-container">${svgCode}</div>
-          </div>
-          <div class="back-side">
-            <div class="print-label print-label-t">A</div>
-            <div class="print-label print-label-l">B</div>
-            <div class="print-label print-label-b">C</div>
-            <div class="print-label print-label-r">D</div>
-            <div class="card-back-info">
-              <h2 class="back-student-name">Card #${cardId}</h2>
-              <div class="back-card-id">Card ID: ${cardId}</div>
-              <div class="back-instructions">
-                <span class="highlight">Hold your choice at the TOP</span><br>
-                facing the teacher's camera.
-              </div>
-            </div>
-          </div>
-        `;
+        previewFrame.className = `preview-card-frame per-sheet-${perSheet}`;
+        previewFrame.innerHTML = markup;
         printRoot.appendChild(previewFrame);
 
-        // Clones node structure directly into print container for page output
-        const printableCard = previewFrame.cloneNode(true);
+        // Paper output: group cards into sheets so page breaks land between
+        // sheets, never through the middle of a card.
+        if ((cardId - 1) % perSheet === 0) {
+          sheet = document.createElement('div');
+          sheet.className = `print-sheet per-sheet-${perSheet}`;
+          printSection.appendChild(sheet);
+        }
+        const printableCard = document.createElement('div');
         printableCard.className = 'print-card';
-        printSection.appendChild(printableCard);
+        printableCard.innerHTML = markup;
+        sheet.appendChild(printableCard);
       }
       safeCreateIcons();
     };
@@ -2972,7 +4659,7 @@
     let remoteSessionId = '';
     let remotePollTimer = null;
     let remoteServerAvailable = false;
-    let remoteQrHidden = false;
+    let remoteQrHidden = true;
     let cloudEventSource = null;
     window.discoveredApiBase = '';
 
@@ -2992,6 +4679,26 @@
 
     document.getElementById('btn-toggle-qr')?.addEventListener('click', () => {
       setQrPanelHidden(!remoteQrHidden);
+    });
+
+    document.getElementById('btn-copy-remote-link')?.addEventListener('click', async () => {
+      const input = document.getElementById('remote-link-text');
+      const btn = document.getElementById('btn-copy-remote-link');
+      if (!input || !input.value) return;
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch (err) {
+        // Clipboard API needs a secure context; select the text instead so
+        // the teacher can copy it by hand.
+        input.removeAttribute('readonly');
+        input.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        input.setAttribute('readonly', 'readonly');
+      }
+      if (btn) {
+        btn.innerText = 'Copied';
+        setTimeout(() => { btn.innerText = 'Copy'; }, 1600);
+      }
     });
 
     // Camera pipeline elements
@@ -3063,9 +4770,23 @@
       }
     }
 
+    // Returns { url, mode } or { url: '', reason } when no usable link exists.
+    // mode: 'local'  -> phone talks straight to server.py over the LAN
+    //       'cloud'  -> phone relays through ntfy.sh (different networks, or
+    //                   the teacher page is on https and cannot be reached)
     function mobileScannerUrl(sessionId, origin) {
-      const customUrl = localStorage.getItem('clickers_hosted_url') || '';
-      if (window.location.protocol === 'file:' && customUrl) {
+      const customUrl = (localStorage.getItem('clickers_hosted_url') || '').trim();
+
+      // Opened as a bare file:// — the phone has nothing to load unless the
+      // teacher has told us where a hosted copy lives.
+      if (window.location.protocol === 'file:' && !remoteServerAvailable) {
+        if (!customUrl) {
+          return {
+            url: '',
+            mode: 'none',
+            reason: 'This page was opened straight from disk, so a phone has no address to load it from. Either run "python3 server.py" in the project folder, or paste the URL of a hosted copy below.'
+          };
+        }
         try {
           const parsed = new URL(customUrl);
           let basePath = parsed.pathname;
@@ -3075,73 +4796,86 @@
             basePath += 'index.html';
           }
           const url = new URL(basePath, parsed.origin);
-          url.searchParams.set('teacherOrigin', 'https://ntfy.sh');
+          url.searchParams.set('mode', 'cloud');
           url.hash = `mobile-scan/${encodeURIComponent(sessionId)}`;
-          return url.toString();
-        } catch (e) {}
+          return { url: url.toString(), mode: 'cloud' };
+        } catch (e) {
+          return {
+            url: '',
+            mode: 'none',
+            reason: 'That hosted URL could not be read. It should look like https://your-name.github.io/Clickers'
+          };
+        }
       }
 
       const teacherOrigin = normalizeRemoteOrigin(origin);
       if (!teacherOrigin) {
-        return `${window.location.pathname}#mobile-scan/${encodeURIComponent(sessionId)}`;
+        return { url: '', mode: 'none', reason: 'No reachable address for this page.' };
       }
-      const url = new URL(window.location.pathname || '/index.html', teacherOrigin);
-      url.searchParams.set('teacherOrigin', teacherOrigin);
+
+      // https pages cannot be posted to from a phone over plain http, and a
+      // public host is not on the classroom LAN either — relay instead.
+      const mode = (remoteServerAvailable && teacherOrigin.startsWith('http://')) ? 'local' : 'cloud';
+      const path = window.location.pathname && window.location.pathname !== '/' ? window.location.pathname : '/index.html';
+      const url = new URL(path, teacherOrigin);
+      if (mode === 'local') {
+        url.searchParams.set('teacherOrigin', teacherOrigin);
+      } else {
+        url.searchParams.set('mode', 'cloud');
+      }
       url.hash = `mobile-scan/${encodeURIComponent(sessionId)}`;
-      return url.toString();
+      return { url: url.toString(), mode };
     }
+
+    let remoteLinkMode = 'none';
 
     async function renderRemoteScannerInvite() {
       if (!remoteSessionId) return;
       const origin = await getRemoteScannerOrigin();
-      const mobileUrl = mobileScannerUrl(remoteSessionId, origin);
-      const link = document.getElementById('remote-scan-link');
+      const link = mobileScannerUrl(remoteSessionId, origin);
+      remoteLinkMode = link.mode;
+
+      const anchor = document.getElementById('remote-scan-link');
       const help = document.getElementById('remote-scan-help');
       const canvas = document.getElementById('remote-scan-qr');
+      const wrap = canvas ? canvas.parentElement : null;
+      const linkText = document.getElementById('remote-link-text');
+      const linkRow = linkText ? linkText.parentElement : null;
 
-      if (link) {
-        link.href = mobileUrl;
-        link.innerText = 'Open phone scanner';
-        link.title = mobileUrl;
+      if (!link.url) {
+        if (anchor) { anchor.style.display = 'none'; anchor.href = '#'; }
+        if (linkRow) linkRow.style.display = 'none';
+        if (wrap) wrap.classList.add('is-empty');
+        if (help) help.innerText = link.reason || 'Phone scanning is unavailable.';
+        setRemoteStatus('Setup needed');
+        setRemoteStatusState('warn');
+        updatePhonePill();
+        return;
       }
+
+      if (anchor) {
+        anchor.style.display = '';
+        anchor.href = link.url;
+        anchor.innerText = 'Open phone scanner';
+        anchor.title = link.url;
+      }
+      if (linkText) linkText.value = link.url;
+      if (linkRow) linkRow.style.display = 'flex';
+      if (wrap) wrap.classList.remove('is-empty');
+
+      // 220 CSS px is the smallest the code can be and still be read
+      // reliably by a phone held ~30 cm away.
+      const drawn = drawQrCode(canvas, link.url, 220);
+      if (!drawn && wrap) wrap.classList.add('is-empty');
+
       if (help) {
-        if (remoteServerAvailable) {
-          help.innerText = 'Local server active. Scan this QR code to connect your phone.';
-        } else if (window.location.protocol === 'file:') {
-          const hasHostedUrl = !!localStorage.getItem('clickers_hosted_url');
-          if (hasHostedUrl) {
-            help.innerText = 'Cloud Sync active. Scan this QR code to connect your phone from any cellular or Wi-Fi network.';
-          } else {
-            help.innerText = 'Running as a local file. To sync with a mobile phone without a local server, host this HTML file on GitHub Pages and enter the URL below.';
-          }
-        } else {
-          help.innerText = 'Cloud Sync active. Scan this QR code to connect your phone from any cellular or Wi-Fi network.';
-        }
+        help.innerText = link.mode === 'local'
+          ? 'Your phone must be on the same Wi-Fi as this computer. Scan the code, tap Start, then sweep the room.'
+          : 'Scan the code on any network. Answers relay through the internet, so both devices need a connection.';
       }
-      if (canvas && typeof window.qrcode === 'function') {
-        try {
-          const qr = window.qrcode(0, 'M');
-          qr.addData(mobileUrl);
-          qr.make();
-          const ctx = canvas.getContext('2d');
-          const modules = qr.getModuleCount();
-          const cell = canvas.width / modules;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#172033';
-          for (let row = 0; row < modules; row++) {
-            for (let col = 0; col < modules; col++) {
-              if (qr.isDark(row, col)) {
-                ctx.fillRect(Math.floor(col * cell), Math.floor(row * cell), Math.ceil(cell), Math.ceil(cell));
-              }
-            }
-          }
-        } catch (err) {
-          console.error('QR render failed:', err);
-        }
-      }
-      const hasHostedUrl = !!localStorage.getItem('clickers_hosted_url');
-      setRemoteStatus(remoteServerAvailable ? 'Ready' : (window.location.protocol === 'file:' && !hasHostedUrl ? 'Setup URL' : 'Cloud Ready'));
+      setRemoteStatus(link.mode === 'local' ? 'Ready on Wi-Fi' : 'Ready via internet');
+      setRemoteStatusState('ok');
+      updatePhonePill();
       safeCreateIcons();
     }
 
@@ -3222,6 +4956,10 @@
                 renderLiveStudentGrid();
                 pushStateToProjector();
               }
+            } else if (payload.type === 'hello') {
+              // The phone announces itself and then heartbeats, so the
+              // teacher can see at a glance that the link is live.
+              notePhonePresence(payload);
             } else if (payload.type === 'reset') {
               activeSession.responses = {};
               updateSessionStats();
@@ -3254,12 +4992,19 @@
         remoteServerAvailable = false;
         const hasHostedUrl = !!localStorage.getItem('clickers_hosted_url');
         if (cloudEventSource && cloudEventSource.readyState === EventSource.OPEN) {
-          setRemoteStatus('Cloud Linked');
+          setRemoteStatus('Ready via internet');
+          setRemoteStatusState('ok');
         } else if (cloudEventSource && cloudEventSource.readyState === EventSource.CONNECTING) {
-          setRemoteStatus('Cloud Connecting');
+          setRemoteStatus('Connecting…');
+          setRemoteStatusState('warn');
+        } else if (window.location.protocol === 'file:' && !hasHostedUrl) {
+          setRemoteStatus('Setup needed');
+          setRemoteStatusState('warn');
         } else {
-          setRemoteStatus((window.location.protocol === 'file:' && !hasHostedUrl) ? 'Offline' : 'Cloud Ready');
+          setRemoteStatus('Ready via internet');
+          setRemoteStatusState('ok');
         }
+        updatePhonePill();
         return;
       }
       try {
@@ -3268,7 +5013,13 @@
         if (!res.ok) throw new Error('session unavailable');
         const data = await res.json();
         remoteServerAvailable = true;
-        setRemoteStatus('Linked');
+        setRemoteStatus('Ready on Wi-Fi');
+        setRemoteStatusState('ok');
+        if (data.phone && data.phone.lastSeen) {
+          phoneLastSeen = Math.max(phoneLastSeen, data.phone.lastSeen);
+          if (typeof data.phone.scans === 'number') phoneScanCount = data.phone.scans;
+          updatePhonePill();
+        }
         if (mergeRemoteResponses(data.responses)) {
           updateSessionStats();
           renderLiveStudentGrid();
@@ -3277,9 +5028,11 @@
       } catch (err) {
         remoteServerAvailable = false;
         if (cloudEventSource && cloudEventSource.readyState === EventSource.OPEN) {
-          setRemoteStatus('Cloud Linked');
+          setRemoteStatus('Ready via internet');
+          setRemoteStatusState('ok');
         } else {
           setRemoteStatus('Server offline');
+          setRemoteStatusState('bad');
         }
       }
     }
@@ -3287,20 +5040,43 @@
     async function beginRemoteSession() {
       stopRemotePolling();
       remoteSessionId = createRemoteSessionId();
+      phoneLastSeen = 0;
+      phoneScanCount = 0;
+      updatePhonePill();
+      const toggle = document.getElementById('btn-toggle-qr');
+      if (toggle) toggle.disabled = false;
       setQrPanelHidden(false);
       setRemoteStatus('Preparing link');
+      setRemoteStatusState('warn');
       await resetRemoteSessionOnServer();
       await renderRemoteScannerInvite();
       startCloudSync();
       await syncRemoteResponses();
       remotePollTimer = setInterval(syncRemoteResponses, 800);
+      if (phonePresenceTimer) clearInterval(phonePresenceTimer);
+      phonePresenceTimer = setInterval(updatePhonePill, 4000);
     }
 
     function stopRemoteSession() {
       stopRemotePolling();
       stopCloudSync();
+      if (phonePresenceTimer) {
+        clearInterval(phonePresenceTimer);
+        phonePresenceTimer = null;
+      }
       remoteSessionId = '';
+      phoneLastSeen = 0;
+      phoneScanCount = 0;
+      updatePhonePill();
       setRemoteStatus('No active session');
+      setRemoteStatusState(null);
+      setQrPanelHidden(true);
+      const toggle = document.getElementById('btn-toggle-qr');
+      if (toggle) {
+        toggle.disabled = true;
+        toggle.title = 'Phone scanner is available during a live session';
+        toggle.setAttribute('aria-label', toggle.title);
+      }
     }
 
     function initLiveSetup() {
@@ -3309,20 +5085,17 @@
       document.getElementById('session-active-view').style.display = 'none';
       stopWebcam();
       stopRemoteSession();
-
-      const qSelect = document.getElementById('session-question-select');
-      if (qSelect) {
-        qSelect.innerHTML = '';
-        questions.forEach(q => {
-          qSelect.innerHTML += `<option value="${q.id}">${q.text.substring(0, 50)}...</option>`;
-        });
-      }
+      activeDeck = null;
+      updateDeckBar();
+      refreshQuestionSelect();
     }
 
     // Setup tab toggles
     document.getElementById('tab-setup-roster').addEventListener('click', () => {
       document.getElementById('tab-setup-roster').className = 'btn btn-primary';
       document.getElementById('tab-setup-quick').className = 'btn btn-secondary';
+      document.getElementById('tab-setup-roster').setAttribute('aria-pressed', 'true');
+      document.getElementById('tab-setup-quick').setAttribute('aria-pressed', 'false');
       document.getElementById('setup-roster-pane').style.display = 'block';
       document.getElementById('setup-quick-pane').style.display = 'none';
     });
@@ -3330,6 +5103,8 @@
     document.getElementById('tab-setup-quick').addEventListener('click', () => {
       document.getElementById('tab-setup-roster').className = 'btn btn-secondary';
       document.getElementById('tab-setup-quick').className = 'btn btn-primary';
+      document.getElementById('tab-setup-roster').setAttribute('aria-pressed', 'false');
+      document.getElementById('tab-setup-quick').setAttribute('aria-pressed', 'true');
       document.getElementById('setup-roster-pane').style.display = 'none';
       document.getElementById('setup-quick-pane').style.display = 'block';
     });
@@ -3339,119 +5114,44 @@
       const questionText = document.getElementById('quick-question-input').value.trim() || 'On-the-Fly Quick Poll';
       const cardCount = parseInt(document.getElementById('quick-card-count-input').value) || 30;
 
-      // Build virtual class roster on the fly (not saved in standard classes list)
-      currentClass = {
-        id: 'class_quick',
-        name: 'Quick Poll',
-        students: Array.from({ length: cardCount }, (_, i) => ({
-          id: `virtual_${i + 1}`,
-          name: `Card ${i + 1}`,
-          cardId: i + 1
-        }))
-      };
-
-      // Build virtual question on the fly (not saved in question bank)
-      currentQuestion = {
+      activeDeck = null;
+      updateDeckBar();
+      beginSession({
         id: 'q_quick',
         text: questionText,
         options: { A: 'A', B: 'B', C: 'C', D: 'D' },
-        correct: '' // No correct answer set for generic polls
-      };
-
-      // Set active session texts
-      document.getElementById('active-question-display').innerText = currentQuestion.text;
-      document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
-
-      // Hide active question image container and controls since Quick Poll has no image
-      const imgContainer = document.getElementById('active-question-image-container');
-      const imgEl = document.getElementById('active-question-image');
-      const imgControls = document.getElementById('active-question-image-controls');
-      if (imgContainer && imgEl) {
-        imgEl.src = '';
-        imgContainer.style.display = 'none';
-        if (imgControls) imgControls.style.display = 'none';
-      }
-
-      activeSession = { responses: {} };
-      revealResults = false;
-      privateMode = true; // start in private mode
-      document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Private mode: ON';
-      
-      document.getElementById('session-setup-view').style.display = 'none';
-      document.getElementById('session-active-view').style.display = 'block';
-
-      // Hide charts initially
-      document.getElementById('sidebar-chart-pane').classList.remove('active');
-      beginRemoteSession();
-      
-      updateSessionStats();
-      renderLiveStudentGrid();
-      pushStateToProjector();
-      
-      // Auto start camera
-      startWebcam();
+        correct: ''            // a poll has no right answer
+      }, cardCount, 'Quick Poll');
     });
 
     document.getElementById('btn-start-session').addEventListener('click', () => {
       const qId = document.getElementById('session-question-select').value;
       const cardCount = parseInt(document.getElementById('session-card-count-input').value) || 30;
-      
-      currentQuestion = questions.find(q => q.id === qId);
+      const question = questions.find(q => q.id === qId);
 
-      if (!currentQuestion) {
-        alert('Please select a valid question.');
+      if (!question) {
+        alert('Please select a question first. Add one in the Question Bank, import a PDF page, or use a Quick Poll.');
         return;
       }
 
-      // Build virtual class roster on the fly based on active card slider value
-      currentClass = {
-        id: 'class_generic_session',
-        name: 'Live Session',
-        students: Array.from({ length: cardCount }, (_, i) => ({
-          id: `virtual_${i + 1}`,
-          name: `Card ${i + 1}`,
-          cardId: i + 1
-        }))
-      };
+      activeDeck = null;
+      updateDeckBar();
+      beginSession(question, cardCount, 'Live Session');
+    });
 
-      // Configure Active UI Text
-      document.getElementById('active-question-display').innerText = currentQuestion.text;
-      document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
-
-      // Update Active Question Image & Controls
-      const imgContainer = document.getElementById('active-question-image-container');
-      const imgEl = document.getElementById('active-question-image');
-      const imgControls = document.getElementById('active-question-image-controls');
-      if (imgContainer && imgEl) {
-        if (currentQuestion.image) {
-          imgEl.src = currentQuestion.image;
-          imgContainer.style.display = 'block';
-          if (imgControls) imgControls.style.display = 'flex';
-        } else {
-          imgEl.src = '';
-          imgContainer.style.display = 'none';
-          if (imgControls) imgControls.style.display = 'none';
-        }
-      }
-
-      activeSession = { responses: {} };
-      revealResults = false;
-      privateMode = true;
-      document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Private mode: ON';
-      
-      document.getElementById('session-setup-view').style.display = 'none';
-      document.getElementById('session-active-view').style.display = 'block';
-
-      // Hide sidebar/header charts, activate roster checklist
-      document.getElementById('sidebar-chart-pane').classList.remove('active');
-      beginRemoteSession();
-      
-      updateSessionStats();
-      renderLiveStudentGrid();
-      pushStateToProjector();
-      
-      // Auto request camera on session start
-      startWebcam();
+    document.getElementById('btn-deck-prev')?.addEventListener('click', () => {
+      if (activeDeck) goToDeckPage(activeDeck.index - 1);
+    });
+    document.getElementById('btn-deck-next')?.addEventListener('click', () => {
+      if (activeDeck) goToDeckPage(activeDeck.index + 1);
+    });
+    // Arrow keys move through a deck, so you can drive it from the back of the room.
+    document.addEventListener('keydown', (e) => {
+      if (!activeDeck || isProjectorWindow || isMobileScannerWindow) return;
+      if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+      if (document.querySelector('.modal-backdrop.active')) return;
+      if (e.key === 'ArrowRight') goToDeckPage(activeDeck.index + 1);
+      if (e.key === 'ArrowLeft') goToDeckPage(activeDeck.index - 1);
     });
 
     document.getElementById('btn-stop-session').addEventListener('click', () => {
@@ -3611,7 +5311,7 @@
       overlayCtx.restore();
 
       // Execute ArUco Detector on image pixels
-      if (detector) {
+      if (detector && currentClass) {
         try {
           const imgData = hiddenCtx.getImageData(0, 0, W, H);
           const markers = detector.detect(imgData);
@@ -3748,6 +5448,19 @@
       });
       document.getElementById('mobile-photo-input').addEventListener('change', processMobilePhoto);
       updateMobileCount();
+      updateMobileQueueNote();
+
+      if (mobileSessionId) {
+        sendMobileHello();
+        mobileHelloTimer = setInterval(sendMobileHello, 8000);
+        mobileFlushTimer = setInterval(flushMobileOutbox, 3000);
+        // Coming back to the tab is the most likely moment for the link to
+        // have recovered, so retry immediately rather than waiting a tick.
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) { sendMobileHello(); flushMobileOutbox(); }
+        });
+        window.addEventListener('online', () => { sendMobileHello(); flushMobileOutbox(); });
+      }
 
       safeCreateIcons();
     }
@@ -3844,19 +5557,38 @@
       playScanBeep(answer === 'A' ? 523.25 : answer === 'B' ? 587.33 : answer === 'C' ? 659.25 : 698.46);
     }
 
-    async function sendMobileResponse(cardId, answer) {
-      const now = Date.now();
-      const previous = mobileLastSent[cardId];
-      if (previous && previous.answer === answer && now - previous.timestamp < 1200) return;
-      if (previous && previous.answer !== answer && now - previous.timestamp < 650) return;
+    // Answers that could not be delivered yet. A phone walking a large room
+    // will drift in and out of Wi-Fi; without this the scans are simply lost.
+    const mobileOutbox = new Map();   // cardId -> { answer, timestamp }
+    let mobileFlushTimer = null;
+    let mobileHelloTimer = null;
 
-      mobileLastSent[cardId] = { answer, timestamp: now };
-      const payload = { cardId, answer, timestamp: now };
-      
-      const isCloudMode = mobileTeacherOrigin && (mobileTeacherOrigin.startsWith('https:') || mobileTeacherOrigin.includes('ntfy.sh'));
-      
-      if (!isCloudMode) {
-        let postError = null;
+    function cloudTopicUrl() {
+      return `https://ntfy.sh/clickers-session-${encodeURIComponent(mobileSessionId)}`;
+    }
+
+    function isMobileCloudMode() {
+      return mobileForceCloud ||
+        (mobileTeacherOrigin && (mobileTeacherOrigin.startsWith('https:') || mobileTeacherOrigin.includes('ntfy.sh')));
+    }
+
+    function updateMobileQueueNote() {
+      const el = document.getElementById('mobile-queue-note');
+      if (!el) return;
+      if (mobileOutbox.size === 0) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'block';
+      el.innerText = `${mobileOutbox.size} scan${mobileOutbox.size === 1 ? '' : 's'} waiting to send — they will go through when the connection returns.`;
+    }
+
+    // Tries local first (fast, no internet needed), then the cloud relay.
+    // Returns true only when the teacher screen actually took it.
+    async function deliverMobileResponse(cardId, answer, timestamp) {
+      const payload = { cardId, answer, timestamp };
+
+      if (!isMobileCloudMode()) {
         try {
           const res = await fetchWithTimeout(mobileSessionApiUrl('response'), {
             method: 'POST',
@@ -3864,46 +5596,107 @@
             cache: 'no-store',
             body: JSON.stringify(payload)
           });
-          if (!res.ok) throw new Error('server rejected response');
-          markMobileResponseSynced(cardId, answer);
-          return;
-        } catch (err) {
-          postError = err;
-        }
+          if (res.ok) return 'local';
+        } catch (err) { /* fall through */ }
 
+        // Some captive/proxy setups mangle POST bodies; the GET form works there.
         try {
           const res = await fetchWithTimeout(mobileSessionApiUrl('response', payload), {
             method: 'GET',
             cache: 'no-store'
           });
-          if (!res.ok) throw new Error('server rejected fallback response');
-          markMobileResponseSynced(cardId, answer);
-          return;
-        } catch (err) {
-          console.warn('Mobile response local sync failed:', { postError, fallbackError: err });
-        }
+          if (res.ok) return 'local';
+        } catch (err) { /* fall through to cloud */ }
       }
 
-      // Cloud relay fallback (or direct in Cloud Mode)
       try {
-        const topicUrl = `https://ntfy.sh/clickers-session-${encodeURIComponent(mobileSessionId)}`;
-        const cloudPayload = {
-          type: 'response',
-          cardId: cardId,
-          answer: answer,
-          timestamp: now
-        };
-        const res = await fetchWithTimeout(topicUrl, {
+        const res = await fetchWithTimeout(cloudTopicUrl(), {
           method: 'POST',
-          body: JSON.stringify(cloudPayload)
-        });
-        if (!res.ok) throw new Error('cloud relay rejected response');
-        markMobileResponseSynced(cardId, answer);
-        setMobileStatus(isCloudMode ? 'Synced (Cloud)' : 'Synced via Cloud');
+          body: JSON.stringify({ type: 'response', cardId, answer, timestamp })
+        }, 4500);
+        if (res.ok) return 'cloud';
       } catch (err) {
-        console.error('Mobile response cloud sync failed:', err);
-        setMobileStatus('Cannot reach teacher screen');
+        console.warn('Cloud relay failed:', err);
       }
+      return null;
+    }
+
+    async function sendMobileResponse(cardId, answer) {
+      const now = Date.now();
+      const previous = mobileLastSent[cardId];
+      // Debounce: the same card sits in frame for many frames in a row.
+      if (previous && previous.answer === answer && now - previous.timestamp < 1200) return;
+      if (previous && previous.answer !== answer && now - previous.timestamp < 650) return;
+      mobileLastSent[cardId] = { answer, timestamp: now };
+
+      const via = await deliverMobileResponse(cardId, answer, now);
+      if (via) {
+        markMobileResponseSynced(cardId, answer);
+        setMobileStatus(via === 'local' ? 'Linked over Wi-Fi' : 'Linked over the internet');
+        setMobileStatusState('ok');
+      } else {
+        mobileOutbox.set(String(cardId), { answer, timestamp: now });
+        updateMobileQueueNote();
+        setMobileStatus('Cannot reach the teacher screen — retrying');
+        setMobileStatusState('bad');
+      }
+    }
+
+    async function flushMobileOutbox() {
+      if (mobileOutbox.size === 0) return;
+      const entries = Array.from(mobileOutbox.entries()).slice(0, 6);
+      for (const [cardId, item] of entries) {
+        const via = await deliverMobileResponse(Number(cardId), item.answer, item.timestamp);
+        if (via) {
+          mobileOutbox.delete(cardId);
+          markMobileResponseSynced(cardId, item.answer);
+          setMobileStatus(via === 'local' ? 'Linked over Wi-Fi' : 'Linked over the internet');
+          setMobileStatusState('ok');
+        } else {
+          break;   // still offline; try again on the next tick
+        }
+      }
+      updateMobileQueueNote();
+    }
+
+    function setMobileStatusState(state) {
+      const el = document.getElementById('mobile-sync-status');
+      if (!el) return;
+      el.classList.remove('state-ok', 'state-bad');
+      if (state) el.classList.add(`state-${state}`);
+    }
+
+    // Tell the teacher screen we exist, then keep saying so. This is what
+    // turns "scan the QR and hope" into a visible confirmation.
+    async function sendMobileHello() {
+      if (!mobileSessionId) return;
+      const payload = { type: 'hello', scans: mobileSeenCards.size, timestamp: Date.now() };
+      if (!isMobileCloudMode()) {
+        try {
+          const res = await fetchWithTimeout(mobileSessionApiUrl('hello', { scans: payload.scans }), {
+            method: 'GET',
+            cache: 'no-store'
+          }, 2500);
+          if (res.ok) {
+            setMobileStatus('Linked over Wi-Fi');
+            setMobileStatusState('ok');
+            return;
+          }
+        } catch (err) { /* fall through */ }
+      }
+      try {
+        const res = await fetchWithTimeout(cloudTopicUrl(), {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }, 4500);
+        if (res.ok) {
+          setMobileStatus('Linked over the internet');
+          setMobileStatusState('ok');
+          return;
+        }
+      } catch (err) { /* offline */ }
+      setMobileStatus('Not reaching the teacher screen');
+      setMobileStatusState('bad');
     }
 
     function drawMobileMarker(marker, choice) {
@@ -4108,7 +5901,9 @@
       if (rosterPane) rosterPane.style.display = 'flex';
       
       // Update header info
-      document.getElementById('proj-class-name').innerText = classData.name;
+      document.getElementById('proj-class-name').innerText = classData.deck
+        ? `${classData.deck.name} — page ${classData.deck.index + 1} of ${classData.deck.total}`
+        : classData.name;
       const responsesCount = Object.keys(sessionData.responses).length;
       const totalCount = classData.students.length;
       document.getElementById('proj-progress-text').innerText = `${responsesCount} / ${totalCount} Responded`;
@@ -4116,21 +5911,26 @@
       const pctFill = totalCount > 0 ? (responsesCount / totalCount) * 100 : 0;
       document.getElementById('proj-progress-bar-fill').style.width = `${pctFill}%`;
 
-      // Update question text
-      document.getElementById('proj-question-text').innerText = questionData.text;
+      // Update question text. A PDF page whose title is just "deck — page 3"
+      // is already stated in the header; repeating it wastes the screen.
+      const projText = document.getElementById('proj-question-text');
+      const hideTitle = questionData.autoTitle && questionData.image;
+      projText.innerText = hideTitle ? '' : questionData.text;
+      projText.style.display = hideTitle ? 'none' : '';
 
       // Update question image & height
       const projImgContainer = document.getElementById('proj-question-image-container');
       const projImg = document.getElementById('proj-question-image');
+      const projOverlayLayer = document.getElementById('proj-overlay-layer');
       if (projImgContainer && projImg) {
         if (questionData.image) {
-          projImg.src = questionData.image;
+          if (projImg.src !== questionData.image) projImg.src = questionData.image;
           projImgContainer.style.display = 'block';
-          
+
           // Apply size if provided
           const size = imgSize || 450;
           projImg.style.maxHeight = `${size}px`;
-          
+
           const slider = document.getElementById('proj-image-size-slider');
           const display = document.getElementById('proj-image-size-display');
           if (slider) {
@@ -4139,11 +5939,24 @@
           if (display) {
             display.innerText = `${size}px`;
           }
+
+          // Anything the teacher dropped on the PDF page is drawn here in the
+          // same normalised coordinates, so it lands where they put it.
+          renderOverlays(projOverlayLayer, questionData.overlays, {
+            correct: showResults ? questionData.correct : ''
+          });
+          watchOverlayStage(projOverlayLayer);
         } else {
           projImg.src = '';
           projImgContainer.style.display = 'none';
+          if (projOverlayLayer) projOverlayLayer.innerHTML = '';
         }
       }
+
+      // If the teacher placed answer chips on the page, the separate option
+      // cards below are duplicate noise — the class reads them off the page.
+      const optionsOnPage = Array.isArray(questionData.overlays) &&
+        questionData.overlays.some(o => o.kind === 'option');
 
       // Update Multiple Choice Text Options
       const isQuickPoll = (questionData.id === 'q_quick');
@@ -4202,7 +6015,7 @@
         });
       } else {
         projChart.classList.remove('active');
-        projOptions.style.display = 'grid';
+        projOptions.style.display = optionsOnPage ? 'none' : 'grid';
         document.getElementById('proj-roster-pane').style.opacity = '1';
         
         // Reset bar heights
@@ -4245,6 +6058,1096 @@
     }
 
 
+
+    // ====================================================
+    // BINARY STORE (IndexedDB)
+    // Page renders and question images are far too big for localStorage
+    // (a 30-page PDF blows the ~5 MB quota on its own), so images live here
+    // and localStorage only keeps the small metadata record.
+    // ====================================================
+    const ImageStore = (() => {
+      const DB_NAME = 'clickers-media';
+      const STORE = 'images';
+      let dbPromise = null;
+      let unavailable = false;
+
+      function open() {
+        if (unavailable) return Promise.reject(new Error('IndexedDB unavailable'));
+        if (dbPromise) return dbPromise;
+        dbPromise = new Promise((resolve, reject) => {
+          let req;
+          try {
+            req = indexedDB.open(DB_NAME, 1);
+          } catch (err) {
+            unavailable = true;
+            reject(err);
+            return;
+          }
+          req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => { unavailable = true; reject(req.error); };
+        });
+        return dbPromise;
+      }
+
+      function tx(mode, fn) {
+        return open().then(db => new Promise((resolve, reject) => {
+          const t = db.transaction(STORE, mode);
+          const store = t.objectStore(STORE);
+          const request = fn(store);
+          t.oncomplete = () => resolve(request ? request.result : undefined);
+          t.onerror = () => reject(t.error);
+          t.onabort = () => reject(t.error);
+        }));
+      }
+
+      return {
+        get isAvailable() { return !unavailable; },
+        put: (key, value) => tx('readwrite', st => st.put(value, key)).catch(err => {
+          console.warn('ImageStore.put failed:', err);
+        }),
+        get: (key) => tx('readonly', st => st.get(key)).catch(err => {
+          console.warn('ImageStore.get failed:', err);
+          return undefined;
+        }),
+        del: (key) => tx('readwrite', st => st.delete(key)).catch(() => {}),
+        keys: () => tx('readonly', st => st.getAllKeys()).catch(() => [])
+      };
+    })();
+
+    // ====================================================
+    // QUESTION PERSISTENCE
+    // localStorage holds metadata only; `image` is hydrated from ImageStore
+    // at boot and stripped again on every save.
+    // ====================================================
+    let questionStorageWarned = false;
+
+    function questionImageKey(q) {
+      return `qimg_${q.id}`;
+    }
+
+    // Strip the heavy fields, push them to IndexedDB, persist the rest.
+    function saveQuestions() {
+      const slim = questions.map(q => {
+        const copy = Object.assign({}, q);
+        if (copy.image) {
+          copy.imageKey = copy.imageKey || questionImageKey(q);
+          ImageStore.put(copy.imageKey, copy.image);
+          delete copy.image;
+        }
+        return copy;
+      });
+      try {
+        localStorage.setItem('clickers_questions', JSON.stringify(slim));
+      } catch (err) {
+        console.error('Could not persist questions:', err);
+        if (!questionStorageWarned) {
+          questionStorageWarned = true;
+          alert('This browser ran out of local storage, so the newest questions were kept for this session only.\n\nUse "Save Set" in the Question Bank to export them to a file before closing the tab.');
+        }
+      }
+    }
+
+    // Pull image data back in for anything that has an imageKey.
+    async function hydrateQuestionImages() {
+      if (!ImageStore.isAvailable) return;
+      await Promise.all(questions.map(async q => {
+        if (!q.image && q.imageKey) {
+          const data = await ImageStore.get(q.imageKey);
+          if (data) q.image = data;
+        }
+      }));
+    }
+
+    // ====================================================
+    // OVERLAY ENGINE
+    // An overlay is stored in normalised page coordinates:
+    //   x, y  -> 0..1, fraction of the page image (centre of the item)
+    //   scale -> multiplier on a base type size that is itself 3% of the
+    //            page width.
+    // Because everything is relative, the same numbers render correctly in
+    // the little editor stage, the teacher's sidebar preview and a 4K
+    // projector without any per-surface maths.
+    // ====================================================
+    const OVERLAY_BASE_RATIO = 0.030;
+
+    function makeOverlay(kind, letter, label, x, y) {
+      return {
+        id: `ov_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        kind,
+        letter: letter || '',
+        label: label || '',
+        x: typeof x === 'number' ? x : 0.5,
+        y: typeof y === 'number' ? y : 0.5,
+        scale: 1
+      };
+    }
+
+    function overlayClassName(ov) {
+      if (ov.kind === 'option') return 'ov ov-option';
+      if (ov.kind === 'callout') return 'ov ov-text ov-callout';
+      return 'ov ov-text';
+    }
+
+    function overlayInnerHtml(ov, correctLetter) {
+      if (ov.kind === 'option') {
+        const label = ov.label ? `<span class="ov-body">${escapeHtml(ov.label)}</span>` : '';
+        return `<span class="ov-letter">${escapeHtml(ov.letter || '?')}</span>${label}`;
+      }
+      return escapeHtml(ov.label || '');
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Draws overlays into a layer. `opts.editing` adds the drag affordances.
+    function renderOverlays(layerEl, overlays, opts) {
+      if (!layerEl) return;
+      opts = opts || {};
+      layerEl.innerHTML = '';
+      (overlays || []).forEach(ov => {
+        const el = document.createElement('div');
+        el.className = overlayClassName(ov);
+        if (opts.correct && ov.kind === 'option' && ov.letter === opts.correct) {
+          el.classList.add('is-correct');
+        }
+        el.dataset.ovId = ov.id;
+        el.style.left = `${ov.x * 100}%`;
+        el.style.top = `${ov.y * 100}%`;
+        el.style.fontSize = `${ov.scale}em`;
+        el.innerHTML = overlayInnerHtml(ov, opts.correct);
+        if (opts.editing) {
+          const handle = document.createElement('span');
+          handle.className = 'ov-handle';
+          handle.textContent = '×';
+          handle.dataset.removeId = ov.id;
+          el.appendChild(handle);
+        }
+        layerEl.appendChild(el);
+      });
+      sizeOverlayLayer(layerEl);
+    }
+
+    // The layer's font-size is the single knob that scales everything;
+    // individual items are sized in `em` relative to it.
+    function sizeOverlayLayer(layerEl) {
+      if (!layerEl) return;
+      const stage = layerEl.parentElement;
+      if (!stage) return;
+      const width = stage.clientWidth || stage.getBoundingClientRect().width;
+      if (!width) return;
+      layerEl.style.fontSize = `${Math.max(8, width * OVERLAY_BASE_RATIO)}px`;
+    }
+
+    // Keep overlays sized when the stage resizes (projector fullscreen,
+    // image-size slider, window resize).
+    function watchOverlayStage(layerEl) {
+      if (!layerEl || layerEl.dataset.watched === '1') return;
+      const stage = layerEl.parentElement;
+      if (!stage) return;
+      layerEl.dataset.watched = '1';
+      if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(() => sizeOverlayLayer(layerEl)).observe(stage);
+      } else {
+        window.addEventListener('resize', () => sizeOverlayLayer(layerEl));
+      }
+      const img = stage.querySelector('img');
+      if (img) img.addEventListener('load', () => sizeOverlayLayer(layerEl));
+    }
+
+    // Derive the four option strings a question needs from its overlays,
+    // falling back to the bare letters when a page has none.
+    function optionsFromOverlays(overlays) {
+      const out = { A: 'A', B: 'B', C: 'C', D: 'D' };
+      (overlays || []).forEach(ov => {
+        if (ov.kind === 'option' && out[ov.letter] !== undefined && ov.label) {
+          out[ov.letter] = ov.label;
+        }
+      });
+      return out;
+    }
+
+    // ====================================================
+    // PDF IMPORT
+    // ====================================================
+    const PDFJS_SRC = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    let pdfLibPromise = null;
+
+    // Loaded on demand: it is ~350 KB and most sessions never open the tab.
+    function loadPdfLib() {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+        return Promise.resolve(window.pdfjsLib);
+      }
+      if (pdfLibPromise) return pdfLibPromise;
+      pdfLibPromise = new Promise((resolve, reject) => {
+        const tag = document.createElement('script');
+        tag.src = PDFJS_SRC;
+        tag.onload = () => {
+          if (!window.pdfjsLib) {
+            reject(new Error('pdf.js loaded but did not register'));
+            return;
+          }
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+          resolve(window.pdfjsLib);
+        };
+        tag.onerror = () => {
+          pdfLibPromise = null;
+          reject(new Error('Could not download the PDF reader. Check your internet connection — the PDF feature needs it the first time it is used.'));
+        };
+        document.head.appendChild(tag);
+      });
+      return pdfLibPromise;
+    }
+
+    // pdfDoc holds everything about the currently open PDF.
+    let pdfDoc = {
+      name: '',
+      pages: []   // { num, thumb, full, width, height, selected, overlays, questionText, correct }
+    };
+
+    function setPdfError(message) {
+      const box = document.getElementById('pdf-error');
+      const text = document.getElementById('pdf-error-text');
+      if (!box || !text) return;
+      if (!message) {
+        box.style.display = 'none';
+        return;
+      }
+      text.innerText = message;
+      box.style.display = 'flex';
+    }
+
+    function setPdfProgress(done, total, label) {
+      const wrap = document.getElementById('pdf-progress-wrap');
+      const fill = document.getElementById('pdf-progress-fill');
+      const text = document.getElementById('pdf-progress-text');
+      if (!wrap) return;
+      if (total <= 0) {
+        wrap.style.display = 'none';
+        return;
+      }
+      wrap.style.display = 'block';
+      if (fill) fill.style.width = `${Math.round((done / total) * 100)}%`;
+      if (text) text.innerText = label || `Rendering page ${done} of ${total}…`;
+    }
+
+    // Render one page twice: a small thumbnail for the grid and a
+    // projector-grade image. 1500px on the long edge at JPEG 0.82 keeps text
+    // crisp on a 1080p projector without producing 3 MB per page.
+    async function renderPdfPage(page, maxSide, quality) {
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = maxSide / Math.max(baseViewport.width, baseViewport.height);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const ctx = canvas.getContext('2d');
+      // PDFs assume paper: without this, transparent regions come out black.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport, background: '#ffffff' }).promise;
+      return {
+        data: canvas.toDataURL('image/jpeg', quality),
+        width: canvas.width,
+        height: canvas.height
+      };
+    }
+
+    async function handlePdfFile(file) {
+      if (!file) return;
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      if (!isPdf) {
+        setPdfError('That file is not a PDF. Export your slides or worksheet as a PDF and try again.');
+        return;
+      }
+      setPdfError('');
+      setPdfProgress(0, 1, 'Loading the PDF reader…');
+
+      let pdfjsLib;
+      try {
+        pdfjsLib = await loadPdfLib();
+      } catch (err) {
+        setPdfProgress(0, 0);
+        setPdfError(err.message);
+        return;
+      }
+
+      let doc;
+      try {
+        const buffer = await file.arrayBuffer();
+        setPdfProgress(0, 1, 'Reading the document…');
+        doc = await pdfjsLib.getDocument({ data: buffer }).promise;
+      } catch (err) {
+        console.error('PDF parse failed:', err);
+        setPdfProgress(0, 0);
+        setPdfError('This PDF could not be opened. If it is password protected, remove the password and try again.');
+        return;
+      }
+
+      const MAX_PAGES = 60;
+      const total = Math.min(doc.numPages, MAX_PAGES);
+      pdfDoc = { name: file.name.replace(/\.pdf$/i, ''), pages: [] };
+
+      for (let n = 1; n <= total; n++) {
+        setPdfProgress(n - 1, total);
+        try {
+          const page = await doc.getPage(n);
+          const thumb = await renderPdfPage(page, 320, 0.7);
+          const full = await renderPdfPage(page, 1500, 0.82);
+          pdfDoc.pages.push({
+            num: n,
+            thumb: thumb.data,
+            full: full.data,
+            width: full.width,
+            height: full.height,
+            selected: false,
+            edited: false,
+            overlays: [],
+            questionText: '',
+            correct: ''
+          });
+        } catch (err) {
+          console.error(`Page ${n} failed to render:`, err);
+        }
+        // Yield so the progress bar actually paints on long documents.
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      setPdfProgress(total, total, 'Done');
+      setTimeout(() => setPdfProgress(0, 0), 400);
+
+      if (doc.numPages > MAX_PAGES) {
+        setPdfError(`This PDF has ${doc.numPages} pages; the first ${MAX_PAGES} were loaded. Split the file if you need the rest.`);
+      }
+
+      document.getElementById('pdf-doc-title').innerText = pdfDoc.name || 'Document';
+      document.getElementById('pdf-pages-card').style.display = 'block';
+      document.getElementById('pdf-header-actions').style.display = 'flex';
+      renderPdfPageGrid();
+    }
+
+    function selectedPdfPages() {
+      return pdfDoc.pages.filter(p => p.selected);
+    }
+
+    function updatePdfSelectionSummary() {
+      const chosen = selectedPdfPages();
+      const el = document.getElementById('pdf-selection-summary');
+      if (!el) return;
+      if (chosen.length === 0) {
+        el.innerText = 'No pages selected — click the pages you want to ask about.';
+      } else {
+        const edited = chosen.filter(p => p.overlays.length > 0).length;
+        el.innerText = `${chosen.length} page${chosen.length === 1 ? '' : 's'} selected · ${edited} with answer choices placed`;
+      }
+      const runBtn = document.getElementById('btn-pdf-run-deck');
+      const importBtn = document.getElementById('btn-pdf-import');
+      [runBtn, importBtn].forEach(b => { if (b) b.disabled = chosen.length === 0; });
+    }
+
+    function renderPdfPageGrid() {
+      const grid = document.getElementById('pdf-page-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      pdfDoc.pages.forEach(page => {
+        const tile = document.createElement('div');
+        tile.className = `pdf-page-tile${page.selected ? ' selected' : ''}`;
+        tile.innerHTML = `
+          <img src="${page.thumb}" alt="Page ${page.num}" loading="lazy">
+          <div class="tile-check">${page.selected ? '<i data-lucide="check" style="width:13px;height:13px;"></i>' : ''}</div>
+          ${page.overlays.length ? '<div class="tile-badge">ready</div>' : ''}
+          <div class="tile-bar">
+            <span>Page ${page.num}</span>
+            <button class="tile-edit-btn" data-edit-page="${page.num}">Edit</button>
+          </div>
+        `;
+        tile.addEventListener('click', (e) => {
+          if (e.target.closest('[data-edit-page]')) return;
+          page.selected = !page.selected;
+          renderPdfPageGrid();
+        });
+        grid.appendChild(tile);
+      });
+      grid.querySelectorAll('[data-edit-page]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openPageEditor(parseInt(btn.getAttribute('data-edit-page'), 10));
+        });
+      });
+      updatePdfSelectionSummary();
+      safeCreateIcons();
+    }
+
+    // ====================================================
+    // PDF PAGE EDITOR (drag A/B/C/D chips and text onto the page)
+    // ====================================================
+    let editorPage = null;      // the live page object being edited
+    let editorDraft = null;     // working copy, discarded on Cancel
+    let editorSelectedId = null;
+
+    function openPageEditor(pageNum) {
+      const page = pdfDoc.pages.find(p => p.num === pageNum);
+      if (!page) return;
+      editorPage = page;
+      editorDraft = {
+        overlays: JSON.parse(JSON.stringify(page.overlays || [])),
+        questionText: page.questionText || '',
+        correct: page.correct || ''
+      };
+      editorSelectedId = null;
+
+      document.getElementById('page-editor-title').innerText = `Page ${page.num} · ${pdfDoc.name || 'Document'}`;
+      const img = document.getElementById('editor-page-img');
+      img.src = page.full;
+      document.getElementById('editor-question-text').value = editorDraft.questionText;
+
+      document.querySelectorAll('#editor-correct-toggle .seg-btn').forEach(b => {
+        b.classList.toggle('active', (b.getAttribute('data-correct') || '') === editorDraft.correct);
+      });
+
+      openModal('page-editor-modal');
+      // The stage has no width until the modal is visible.
+      requestAnimationFrame(() => {
+        drawEditorOverlays();
+        watchOverlayStage(document.getElementById('editor-overlay-layer'));
+      });
+    }
+
+    function drawEditorOverlays() {
+      const layer = document.getElementById('editor-overlay-layer');
+      renderOverlays(layer, editorDraft.overlays, { editing: true, correct: editorDraft.correct });
+      if (editorSelectedId) {
+        const el = layer.querySelector(`[data-ov-id="${editorSelectedId}"]`);
+        if (el) el.classList.add('selected');
+      }
+      // Grey out letters already placed.
+      document.querySelectorAll('#editor-option-tools .tool-chip').forEach(chip => {
+        const letter = chip.getAttribute('data-add-option');
+        const used = editorDraft.overlays.some(o => o.kind === 'option' && o.letter === letter);
+        chip.classList.toggle('placed', used);
+      });
+      renderEditorItemList();
+      updateEditorSelectionPanel();
+    }
+
+    function renderEditorItemList() {
+      const panel = document.getElementById('editor-items-panel');
+      const list = document.getElementById('editor-items-list');
+      if (!panel || !list) return;
+      if (!editorDraft.overlays.length) {
+        panel.style.display = 'none';
+        return;
+      }
+      panel.style.display = 'block';
+      list.innerHTML = '';
+      editorDraft.overlays.forEach(ov => {
+        const row = document.createElement('div');
+        row.className = 'ov-list-row';
+        const isOption = ov.kind === 'option';
+        row.innerHTML = `
+          <span class="pill${isOption ? '' : ' text'}">${isOption ? escapeHtml(ov.letter) : 'T'}</span>
+          <span class="label">${escapeHtml(ov.label || (isOption ? 'letter only' : 'empty text box'))}</span>
+        `;
+        row.addEventListener('click', () => {
+          editorSelectedId = ov.id;
+          drawEditorOverlays();
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function updateEditorSelectionPanel() {
+      const empty = document.getElementById('editor-selection-empty');
+      const controls = document.getElementById('editor-selection-controls');
+      const ov = editorDraft.overlays.find(o => o.id === editorSelectedId);
+      if (!ov) {
+        if (empty) empty.style.display = 'block';
+        if (controls) controls.style.display = 'none';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      if (controls) controls.style.display = 'block';
+      const textInput = document.getElementById('editor-item-text');
+      const sizeInput = document.getElementById('editor-item-size');
+      const sizeVal = document.getElementById('editor-item-size-val');
+      if (textInput) {
+        textInput.value = ov.label || '';
+        textInput.placeholder = ov.kind === 'option' ? `Text for choice ${ov.letter} (optional)` : 'Type your text';
+      }
+      if (sizeInput) sizeInput.value = String(Math.round(ov.scale * 100));
+      if (sizeVal) sizeVal.innerText = `${Math.round(ov.scale * 100)}%`;
+    }
+
+    function addEditorOverlay(ov) {
+      editorDraft.overlays.push(ov);
+      editorSelectedId = ov.id;
+      drawEditorOverlays();
+    }
+
+    // Drop new items in a spread-out default position rather than stacking
+    // them all in the middle.
+    function defaultOptionSpot(letter) {
+      const spots = { A: [0.28, 0.76], B: [0.72, 0.76], C: [0.28, 0.90], D: [0.72, 0.90] };
+      return spots[letter] || [0.5, 0.5];
+    }
+
+    function initPageEditor() {
+      const layer = document.getElementById('editor-overlay-layer');
+      const stage = document.getElementById('editor-stage');
+
+      document.querySelectorAll('#editor-option-tools .tool-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const letter = chip.getAttribute('data-add-option');
+          if (editorDraft.overlays.some(o => o.kind === 'option' && o.letter === letter)) return;
+          const [x, y] = defaultOptionSpot(letter);
+          addEditorOverlay(makeOverlay('option', letter, '', x, y));
+        });
+      });
+
+      document.getElementById('btn-add-all-options').addEventListener('click', () => {
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+          if (editorDraft.overlays.some(o => o.kind === 'option' && o.letter === letter)) return;
+          const [x, y] = defaultOptionSpot(letter);
+          editorDraft.overlays.push(makeOverlay('option', letter, '', x, y));
+        });
+        editorSelectedId = null;
+        drawEditorOverlays();
+      });
+
+      document.getElementById('btn-add-text').addEventListener('click', () => {
+        addEditorOverlay(makeOverlay('text', '', 'New text', 0.5, 0.12));
+      });
+      document.getElementById('btn-add-callout').addEventListener('click', () => {
+        addEditorOverlay(makeOverlay('callout', '', 'Look here', 0.5, 0.2));
+      });
+
+      document.getElementById('editor-item-text').addEventListener('input', (e) => {
+        const ov = editorDraft.overlays.find(o => o.id === editorSelectedId);
+        if (!ov) return;
+        ov.label = e.target.value;
+        const el = layer.querySelector(`[data-ov-id="${ov.id}"]`);
+        if (el) {
+          const handle = el.querySelector('.ov-handle');
+          el.innerHTML = overlayInnerHtml(ov, editorDraft.correct);
+          if (handle) el.appendChild(handle);
+        }
+        renderEditorItemList();
+      });
+
+      document.getElementById('editor-item-size').addEventListener('input', (e) => {
+        const ov = editorDraft.overlays.find(o => o.id === editorSelectedId);
+        if (!ov) return;
+        ov.scale = (parseInt(e.target.value, 10) || 100) / 100;
+        const el = layer.querySelector(`[data-ov-id="${ov.id}"]`);
+        if (el) el.style.fontSize = `${ov.scale}em`;
+        const sizeVal = document.getElementById('editor-item-size-val');
+        if (sizeVal) sizeVal.innerText = `${Math.round(ov.scale * 100)}%`;
+      });
+
+      document.getElementById('btn-editor-delete-item').addEventListener('click', () => {
+        editorDraft.overlays = editorDraft.overlays.filter(o => o.id !== editorSelectedId);
+        editorSelectedId = null;
+        drawEditorOverlays();
+      });
+
+      document.getElementById('editor-question-text').addEventListener('input', (e) => {
+        editorDraft.questionText = e.target.value;
+      });
+
+      document.querySelectorAll('#editor-correct-toggle .seg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#editor-correct-toggle .seg-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          editorDraft.correct = btn.getAttribute('data-correct') || '';
+          drawEditorOverlays();
+        });
+      });
+
+      // --- Dragging. Pointer events cover mouse, pen and touch in one path. ---
+      let drag = null;
+      layer.addEventListener('pointerdown', (e) => {
+        const removeBtn = e.target.closest('[data-remove-id]');
+        if (removeBtn) {
+          const id = removeBtn.getAttribute('data-remove-id');
+          editorDraft.overlays = editorDraft.overlays.filter(o => o.id !== id);
+          if (editorSelectedId === id) editorSelectedId = null;
+          drawEditorOverlays();
+          return;
+        }
+        const el = e.target.closest('.ov');
+        if (!el) return;
+        const ov = editorDraft.overlays.find(o => o.id === el.dataset.ovId);
+        if (!ov) return;
+        editorSelectedId = ov.id;
+        layer.querySelectorAll('.ov').forEach(n => n.classList.remove('selected'));
+        el.classList.add('selected');
+        updateEditorSelectionPanel();
+
+        const rect = stage.getBoundingClientRect();
+        drag = {
+          ov,
+          el,
+          rect,
+          // Keep the grab point under the cursor instead of snapping the
+          // item's centre to it.
+          dx: ov.x - (e.clientX - rect.left) / rect.width,
+          dy: ov.y - (e.clientY - rect.top) / rect.height
+        };
+        el.classList.add('dragging');
+        el.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+
+      layer.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        const nx = (e.clientX - drag.rect.left) / drag.rect.width + drag.dx;
+        const ny = (e.clientY - drag.rect.top) / drag.rect.height + drag.dy;
+        drag.ov.x = Math.min(0.99, Math.max(0.01, nx));
+        drag.ov.y = Math.min(0.99, Math.max(0.01, ny));
+        drag.el.style.left = `${drag.ov.x * 100}%`;
+        drag.el.style.top = `${drag.ov.y * 100}%`;
+      });
+
+      const endDrag = () => {
+        if (!drag) return;
+        drag.el.classList.remove('dragging');
+        drag = null;
+      };
+      layer.addEventListener('pointerup', endDrag);
+      layer.addEventListener('pointercancel', endDrag);
+
+      // Double-click straight into the label field.
+      layer.addEventListener('dblclick', (e) => {
+        const el = e.target.closest('.ov');
+        if (!el) return;
+        editorSelectedId = el.dataset.ovId;
+        drawEditorOverlays();
+        const input = document.getElementById('editor-item-text');
+        if (input) { input.focus(); input.select(); }
+      });
+
+      document.getElementById('btn-page-editor-save').addEventListener('click', () => {
+        if (!editorPage) return;
+        editorPage.overlays = editorDraft.overlays;
+        editorPage.questionText = editorDraft.questionText;
+        editorPage.correct = editorDraft.correct;
+        editorPage.edited = true;
+        // Saving a page implies you want it.
+        editorPage.selected = true;
+        closeModal('page-editor-modal');
+        renderPdfPageGrid();
+      });
+
+      const cancel = () => closeModal('page-editor-modal');
+      document.getElementById('btn-page-editor-cancel').addEventListener('click', cancel);
+      document.getElementById('btn-page-editor-close').addEventListener('click', cancel);
+    }
+
+    // Turn a selected page into a question object the rest of the app
+    // already knows how to display.
+    function pageToQuestion(page, idPrefix) {
+      const id = `${idPrefix}_p${page.num}`;
+      const autoTitle = !page.questionText;
+      return {
+        id,
+        text: page.questionText || `${pdfDoc.name || 'PDF'} — page ${page.num}`,
+        autoTitle,
+        options: optionsFromOverlays(page.overlays),
+        correct: page.correct || '',
+        image: page.full,
+        imageKey: `qimg_${id}`,
+        overlays: page.overlays,
+        source: { kind: 'pdf', doc: pdfDoc.name, page: page.num }
+      };
+    }
+
+    function initPdfTab() {
+      const dropzone = document.getElementById('pdf-dropzone');
+      const input = document.getElementById('pdf-file-input');
+
+      dropzone.addEventListener('click', () => input.click());
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        handlePdfFile(file);
+      });
+      input.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        handlePdfFile(file);
+        e.target.value = '';
+      });
+
+      document.getElementById('btn-pdf-select-all').addEventListener('click', () => {
+        pdfDoc.pages.forEach(p => { p.selected = true; });
+        renderPdfPageGrid();
+      });
+      document.getElementById('btn-pdf-select-none').addEventListener('click', () => {
+        pdfDoc.pages.forEach(p => { p.selected = false; });
+        renderPdfPageGrid();
+      });
+      document.getElementById('btn-pdf-clear').addEventListener('click', () => {
+        pdfDoc = { name: '', pages: [] };
+        document.getElementById('pdf-pages-card').style.display = 'none';
+        document.getElementById('pdf-header-actions').style.display = 'none';
+        setPdfError('');
+      });
+
+      document.getElementById('btn-pdf-import').addEventListener('click', () => {
+        const chosen = selectedPdfPages();
+        if (!chosen.length) return;
+        const prefix = `qpdf_${Date.now().toString(36)}`;
+        const added = chosen.map(p => pageToQuestion(p, prefix));
+        questions = questions.concat(added);
+        saveQuestions();
+        renderQuestionsList();
+        refreshQuestionSelect();
+        alert(`Added ${added.length} page${added.length === 1 ? '' : 's'} to your Question Bank.`);
+      });
+
+      document.getElementById('btn-pdf-run-deck').addEventListener('click', () => {
+        const chosen = selectedPdfPages();
+        if (!chosen.length) return;
+        const prefix = `deck_${Date.now().toString(36)}`;
+        startDeckSession({
+          name: pdfDoc.name || 'PDF deck',
+          questions: chosen.map(p => pageToQuestion(p, prefix))
+        });
+      });
+
+      updatePdfSelectionSummary();
+    }
+
+    // ====================================================
+    // DECK RUNTIME
+    // A deck is an ordered list of questions the teacher steps through
+    // without leaving the live session.
+    // ====================================================
+    let activeDeck = null;
+
+    function updateDeckBar() {
+      const bar = document.getElementById('deck-bar');
+      if (!bar) return;
+      if (!activeDeck) {
+        bar.style.display = 'none';
+        return;
+      }
+      bar.style.display = 'flex';
+      document.getElementById('deck-name').innerText = activeDeck.name;
+      document.getElementById('deck-position').innerText = `${activeDeck.index + 1} / ${activeDeck.questions.length}`;
+      const prev = document.getElementById('btn-deck-prev');
+      const next = document.getElementById('btn-deck-next');
+      if (prev) prev.disabled = activeDeck.index === 0;
+      if (next) next.disabled = activeDeck.index >= activeDeck.questions.length - 1;
+      safeCreateIcons();
+    }
+
+    function goToDeckPage(index) {
+      if (!activeDeck) return;
+      const clamped = Math.min(activeDeck.questions.length - 1, Math.max(0, index));
+      // Keep what the class already answered on the page we are leaving.
+      activeDeck.results[activeDeck.index] = activeSession.responses;
+      activeDeck.index = clamped;
+      currentQuestion = activeDeck.questions[clamped];
+      if (currentClass) {
+        currentClass.deck = { name: activeDeck.name, index: clamped, total: activeDeck.questions.length };
+      }
+      activeSession = { responses: activeDeck.results[clamped] || {} };
+      revealResults = false;
+      document.getElementById('btn-reveal-results').innerHTML = '<i data-lucide="bar-chart-3" style="width:16px;height:16px;"></i> Project Results';
+      document.getElementById('sidebar-chart-pane').classList.remove('active');
+      resetRemoteSessionOnServer();
+      applyActiveQuestionToUi();
+      updateDeckBar();
+      updateSessionStats();
+      renderLiveStudentGrid();
+      pushStateToProjector();
+    }
+
+    function startDeckSession(deck) {
+      if (!deck || !deck.questions.length) return;
+      activeDeck = { name: deck.name, questions: deck.questions, index: 0, results: {} };
+      const cardCount = parseInt(document.getElementById('session-card-count-input').value, 10) || 30;
+      beginSession(deck.questions[0], cardCount, deck.name);
+      if (currentClass) {
+        currentClass.deck = { name: deck.name, index: 0, total: deck.questions.length };
+      }
+      updateDeckBar();
+      pushStateToProjector();
+    }
+
+    // ====================================================
+    // TAB ROUTING (shared by the sidebar and in-page CTAs)
+    // ====================================================
+    const TAB_TITLES = {
+      'home-tab': 'How it works',
+      'live-tab': 'Live Session',
+      'classes-tab': 'Print Cards',
+      'questions-tab': 'Question Bank',
+      'pdf-tab': 'PDF Questions'
+    };
+
+    window.goToTab = function(tabId, opts) {
+      opts = opts || {};
+      const target = document.getElementById(tabId);
+      if (!target) return;
+
+      document.getElementById('main-content').style.display = 'flex';
+      document.getElementById('main-content').style.marginLeft = '';
+      document.getElementById('sidebar-nav').style.display = 'flex';
+
+      document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active');
+        n.querySelector('button')?.removeAttribute('aria-current');
+      });
+      document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
+
+      const navItem = document.querySelector(`.nav-item[data-tab="${tabId}"]`);
+      if (navItem) {
+        navItem.classList.add('active');
+        navItem.querySelector('button')?.setAttribute('aria-current', 'page');
+        if (window.matchMedia('(max-width: 980px)').matches) {
+          requestAnimationFrame(() => navItem.scrollIntoView({ block: 'nearest', inline: 'center' }));
+        }
+      }
+      target.classList.add('active');
+      document.getElementById('page-title-text').innerText = TAB_TITLES[tabId] || 'Clickers';
+
+      if (tabId === 'questions-tab') renderQuestionsList();
+      // skipInit is used when a session is being started: initLiveSetup()
+      // tears a session back down, which would undo the start.
+      if (tabId === 'live-tab' && !opts.skipInit) initLiveSetup();
+      if (tabId === 'home-tab') startHomeDemo();
+      else stopHomeDemo();
+
+      // Scroll back to the top; deep pages otherwise open mid-way down.
+      const layout = document.getElementById('main-content');
+      if (layout && layout.scrollTo) layout.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    };
+
+    // ====================================================
+    // HOME: rotating demo card
+    // ====================================================
+    let homeDemoTimer = null;
+    let homeDemoStep = 0;
+
+    function startHomeDemo() {
+      const marker = document.getElementById('home-demo-marker');
+      const card = document.getElementById('home-demo-card');
+      const answer = document.getElementById('home-demo-answer');
+      if (!marker || !card) return;
+      if (!marker.innerHTML.trim()) marker.innerHTML = generateArucoSVG(7, 120, 1);
+      if (homeDemoTimer) return;
+      const letters = ['A', 'B', 'C', 'D'];
+      homeDemoTimer = setInterval(() => {
+        homeDemoStep = (homeDemoStep + 1) % 4;
+        // Rotating the whole card is exactly what a student does: the letter
+        // that ends up on top is the answer.
+        card.style.transform = `rotate(${-90 * homeDemoStep}deg)`;
+        if (answer) answer.innerText = letters[homeDemoStep];
+      }, 2200);
+    }
+
+    function stopHomeDemo() {
+      if (homeDemoTimer) {
+        clearInterval(homeDemoTimer);
+        homeDemoTimer = null;
+      }
+    }
+
+    // ====================================================
+    // SESSION START (shared by roster, quick poll and PDF decks)
+    // ====================================================
+    function refreshQuestionSelect() {
+      const qSelect = document.getElementById('session-question-select');
+      if (!qSelect) return;
+      const previous = qSelect.value;
+      qSelect.innerHTML = '';
+      if (!questions.length) {
+        qSelect.innerHTML = '<option value="">No questions yet — add one in the Question Bank</option>';
+        return;
+      }
+      questions.forEach(q => {
+        const opt = document.createElement('option');
+        opt.value = q.id;
+        const label = (q.text || 'Untitled question').trim();
+        const prefix = q.source && q.source.kind === 'pdf' ? '📄 ' : '';
+        opt.textContent = prefix + (label.length > 62 ? label.slice(0, 62) + '…' : label);
+        qSelect.appendChild(opt);
+      });
+      if (previous && questions.some(q => q.id === previous)) qSelect.value = previous;
+    }
+
+    // Paints the current question into the teacher's active-session card,
+    // including any overlays placed on a PDF page.
+    function applyActiveQuestionToUi() {
+      if (!currentQuestion) return;
+      document.getElementById('active-question-display').innerText = currentQuestion.text;
+
+      const imgContainer = document.getElementById('active-question-image-container');
+      const imgEl = document.getElementById('active-question-image');
+      const imgControls = document.getElementById('active-question-image-controls');
+      const layer = document.getElementById('active-overlay-layer');
+
+      if (!imgContainer || !imgEl) return;
+      if (currentQuestion.image) {
+        imgEl.src = currentQuestion.image;
+        imgContainer.style.display = 'block';
+        if (imgControls) imgControls.style.display = 'flex';
+        renderOverlays(layer, currentQuestion.overlays, { correct: currentQuestion.correct });
+        watchOverlayStage(layer);
+      } else {
+        imgEl.src = '';
+        imgContainer.style.display = 'none';
+        if (imgControls) imgControls.style.display = 'none';
+        if (layer) layer.innerHTML = '';
+      }
+    }
+
+    function beginSession(question, cardCount, className) {
+      goToTab('live-tab', { skipInit: true });
+      currentQuestion = question;
+      currentClass = {
+        id: 'class_generic_session',
+        name: className || 'Live Session',
+        students: Array.from({ length: cardCount }, (_, i) => ({
+          id: `virtual_${i + 1}`,
+          name: `Card ${i + 1}`,
+          cardId: i + 1
+        }))
+      };
+
+      document.getElementById('active-class-display').innerText = `${currentClass.name} (IDs 1-${cardCount})`;
+      applyActiveQuestionToUi();
+
+      activeSession = { responses: {} };
+      revealResults = false;
+      privateMode = true;
+      document.getElementById('btn-toggle-private-mode').innerHTML = '<i data-lucide="eye-off" style="width:16px;height:16px;"></i> Private mode: ON';
+      document.getElementById('btn-reveal-results').innerHTML = '<i data-lucide="bar-chart-3" style="width:16px;height:16px;"></i> Project Results';
+
+      document.getElementById('session-setup-view').style.display = 'none';
+      document.getElementById('session-active-view').style.display = 'block';
+      document.getElementById('sidebar-chart-pane').classList.remove('active');
+
+      beginRemoteSession();
+      updateSessionStats();
+      renderLiveStudentGrid();
+      pushStateToProjector();
+      startWebcam();
+      safeCreateIcons();
+    }
+
+    // ====================================================
+    // QR RENDERING
+    // The previous version drew the code into an 88 CSS-pixel box with
+    // fractional module widths and no quiet zone. Both break scanning:
+    // a phone needs whole, evenly-sized modules and the 4-module white
+    // border the QR spec requires. This draws at an integer module size
+    // on a device-pixel-ratio backing store.
+    // ====================================================
+    const QR_QUIET_MODULES = 4;
+
+    function drawQrCode(canvas, text, targetCssPx) {
+      if (!canvas || typeof window.qrcode !== 'function') return false;
+      let qr;
+      try {
+        qr = window.qrcode(0, 'M');   // 0 = pick the smallest version that fits
+        qr.addData(text);
+        qr.make();
+      } catch (err) {
+        console.error('QR encode failed:', err);
+        return false;
+      }
+
+      const modules = qr.getModuleCount();
+      const span = modules + QR_QUIET_MODULES * 2;
+      const cell = Math.max(2, Math.floor((targetCssPx || 220) / span));
+      const size = span * cell;
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
+
+      canvas.width = Math.round(size * dpr);
+      canvas.height = Math.round(size * dpr);
+      canvas.style.width = `${size}px`;
+      canvas.style.height = `${size}px`;
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      // Pure black, not the theme navy: contrast ratio is what decoders key on.
+      ctx.fillStyle = '#000000';
+      for (let row = 0; row < modules; row++) {
+        for (let col = 0; col < modules; col++) {
+          if (qr.isDark(row, col)) {
+            ctx.fillRect(
+              (col + QR_QUIET_MODULES) * cell,
+              (row + QR_QUIET_MODULES) * cell,
+              cell,
+              cell
+            );
+          }
+        }
+      }
+      return true;
+    }
+
+    // ====================================================
+    // PHONE PRESENCE
+    // ====================================================
+    let phoneLastSeen = 0;
+    let phoneScanCount = 0;
+    let phonePresenceTimer = null;
+
+    function notePhonePresence(payload) {
+      phoneLastSeen = Date.now();
+      if (payload && typeof payload.scans === 'number') phoneScanCount = payload.scans;
+      updatePhonePill();
+    }
+
+    function updatePhonePill() {
+      const pill = document.getElementById('remote-phone-pill');
+      const text = document.getElementById('remote-phone-pill-text');
+      if (!pill || !text) return;
+      const age = Date.now() - phoneLastSeen;
+      // The phone heartbeats every 8s; 25s of silence means it went away.
+      const live = phoneLastSeen > 0 && age < 25000;
+      pill.classList.toggle('live', live);
+      if (live) {
+        text.innerText = phoneScanCount > 0
+          ? `Phone linked · ${phoneScanCount} scanned`
+          : 'Phone linked';
+      } else if (phoneLastSeen > 0) {
+        text.innerText = 'Phone went quiet';
+      } else {
+        text.innerText = 'No phone linked';
+      }
+    }
+
+    function setRemoteStatusState(state) {
+      const el = document.getElementById('remote-scan-status');
+      if (!el) return;
+      el.classList.remove('state-ok', 'state-warn', 'state-bad');
+      if (state) el.classList.add(`state-${state}`);
+    }
+
     // ----------------------------------------------------
     // COMPONENT HELPER FUNCTIONS
     // ----------------------------------------------------
@@ -4267,12 +7170,38 @@
       }
       if (hostedInput) {
         hostedInput.value = localStorage.getItem('clickers_hosted_url') || '';
+        let hostedDebounce = null;
         hostedInput.addEventListener('input', (e) => {
           localStorage.setItem('clickers_hosted_url', e.target.value.trim());
-          renderRemoteScannerInvite();
+          // Re-rendering the QR on every keystroke thrashes; settle first.
+          clearTimeout(hostedDebounce);
+          hostedDebounce = setTimeout(() => { renderRemoteScannerInvite(); }, 400);
         });
       }
+
+      initPdfTab();
+      initPageEditor();
       initLiveSetup();
+      updatePhonePill();
+
+      // First visit lands on the explainer; after that, straight to work.
+      let landing = 'live-tab';
+      try {
+        if (!localStorage.getItem('clickers_seen_intro')) {
+          landing = 'home-tab';
+          localStorage.setItem('clickers_seen_intro', '1');
+        }
+      } catch (e) {}
+      window.goToTab(landing);
+
+      // Images live in IndexedDB; pull them back in, then refresh anything
+      // that shows them.
+      hydrateQuestionImages().then(() => {
+        refreshQuestionSelect();
+        if (document.getElementById('questions-tab').classList.contains('active')) {
+          renderQuestionsList();
+        }
+      });
     }
   </script>
 </body>
